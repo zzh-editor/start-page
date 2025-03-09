@@ -5,58 +5,58 @@ links:
     title: Gmail
     src: gmail.svg
     alt: gmail-icon
-  - href: https://photos.google.com
-    title: Photos
-    src: ./gphotos.svg
-    alt: google-photos-icon
+  - href: https://noodsradio.com/shows
+    title: noodsradio
+    src: radio.svg
+    alt: radio-icon
   - href: https://youtube.com
     title: YouTube
     src: youtube.svg
     alt: youtube-icon
-  - href: https://drive.google.com/
-    title: Drive
-    src: drive.svg
-    alt: drive-icon
-  - href: https://myanimelist.net/
-    title: Myanimelist
-    src: myanimelist.svg
-    alt: myanimelist-icon
+  - href: https:/www.icloud.com.cn/
+    title: iCloud
+    src: iCloud.svg
+    alt: iCloud-icon
+  - href: https://sspai.com/
+    title: SSPAI
+    src: sspai.svg
+    alt: sspai-icon
   - href: https://discord.com/app
     title: Discord
     src: discord.svg
     alt: discord-icon
-  - href: https://www.twitch.tv/
-    title: Twitch
-    src: twitch.svg
-    alt: twitch-icon
-  - href: https://web.whatsapp.com/
-    title: WhatsApp
-    src: whatsapp.svg
-    alt: whatsapp-icon
-  - href: https://www.reddit.com/
-    title: Reddit
-    src: reddit.svg
-    alt: reddit-icon
-  - href: https://x.com/home
-    title: X
-    src: x.svg
-    alt: x-icon
-  - href: https://chat.deepseek.com/
-    title: DeepSeek
-    src: deepseek.svg
-    alt: deepseek-icon
-  - href: https://github.com/ahmetdem
+  - href: https://vimeo.com/watch
+    title: Viemo
+    src: viemo.svg
+    alt: viemo-icon
+  - href: https://web.telegram.org/k/
+    title: Telegram
+    src: telegram.svg
+    alt: telegram-icon
+  - href: https://elk.zone/m.cmx.im/public/local
+    title: Mastodon
+    src: mastodon.svg
+    alt: mastodon-icon
+  - href: https://www.bilibili.com/
+    title: Bilibili
+    src: Bilibili.svg
+    alt: Bilibili-icon
+  - href: https://claude.ai/
+    title: Claude
+    src: claude.svg
+    alt: claude-icon
+  - href: https://github.com
     title: Github
     src: github.svg
     alt: github-icon
-  - href: https://mangadex.org/
-    title: MangaDex
-    src: mangadex.svg
-    alt: mangadex-icon
-  - href: https://aniwave.lv/
-    title: AniWave
-    src: aniwave.svg
-    alt: aniwave-icon
+  - href: https://appinn.com/
+    title: Appinn
+    src: appinn.svg
+    alt: appinn-icon
+  - href: https://notion.so/
+    title: Notion
+    src: notion.svg
+    alt: notion-icon
   - href: https://www.deepl.com/en/translator
     title: DeepL
     src: deepl.svg
@@ -69,10 +69,10 @@ links:
     title: ZLibrary
     src: zlibrary.svg
     alt: zlibrary-icon
-  - href: https://www.linkedin.com/in/ahmetdem/
-    title: Linkedin
-    src: linkedin.svg
-    alt: linkedin-icon
+  - href: https://xiaohongshu.com/
+    title: XiaoHongShu
+    src: xhs.svg
+    alt: xhs-icon
   - href: https://www.instagram.com/
     title: Instagram
     src: instagram.svg
