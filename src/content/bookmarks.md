@@ -25,14 +25,14 @@ links:
     title: Discord
     src: discord.svg
     alt: discord-icon
-  - href: https://vimeo.com/watch
-    title: Viemo
-    src: viemo.svg
-    alt: viemo-icon
   - href: https://web.telegram.org/k/
     title: Telegram
     src: telegram.svg
     alt: telegram-icon
+  - href: https://vimeo.com/watch
+    title: Telegram
+    src: viemo.svg
+    alt: viemo-icon
   - href: https://elk.zone/m.cmx.im/public/local
     title: Mastodon
     src: mastodon.svg
@@ -49,14 +49,14 @@ links:
     title: Github
     src: github.svg
     alt: github-icon
-  - href: https://appinn.com/
-    title: Appinn
-    src: appinn.svg
-    alt: appinn-icon
   - href: https://notion.so/
     title: Notion
     src: notion.svg
     alt: notion-icon
+  - href: https://appinn.com/
+    title: Appinn
+    src: Appinn.svg
+    alt: Appinn-icon
   - href: https://www.deepl.com/en/translator
     title: DeepL
     src: deepl.svg
@@ -65,14 +65,14 @@ links:
     title: ChatGpt
     src: chatgpt.svg
     alt: chatgpt-icon
-  - href: https://z-library.sk/
-    title: ZLibrary
-    src: zlibrary.svg
-    alt: zlibrary-icon
   - href: https://xiaohongshu.com/
     title: XiaoHongShu
     src: xhs.svg
     alt: xhs-icon
+  - href: https:///z-library.sk/
+    title: Zlibrary
+    src: zlibrary.svg
+    alt: zlibrary-icon
   - href: https://www.instagram.com/
     title: Instagram
     src: instagram.svg
