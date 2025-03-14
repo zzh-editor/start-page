@@ -13,7 +13,7 @@ links:
     title: YouTube
     src: youtube.svg
     alt: youtube-icon
-  - href: https:/www.icloud.com.cn/
+  - href: https://www.icloud.com.cn/
     title: iCloud
     src: iCloud.svg
     alt: iCloud-icon
@@ -65,10 +65,10 @@ links:
     title: ChatGpt
     src: chatgpt.svg
     alt: chatgpt-icon
-  - href: https://xiaohongshu.com/
-    title: XiaoHongShu
-    src: xhs.svg
-    alt: xhs-icon
+  - href: https://podcasts.apple.com/
+    title: Podcasts
+    src: podcasts.svg
+    alt: podcasts-icon
   - href: https:///z-library.sk/
     title: Zlibrary
     src: zlibrary.svg
