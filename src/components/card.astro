@@ -6,60 +6,56 @@ links.sort((a, b) => a.title.localeCompare(b.title));
 ---
 <section class="bookmark-sections">
   <!-- Section 1 -->
-  <div class="bookmark-section">
-    <ul>
+  <md-outlined-card class="bookmark-section">
+    <md-list>
       {links.slice(0, 5).map((link) => ( <!-- First 5 bookmarks -->
-        <li>
-          <a href={link.href}>
-            <img class="svg-icon" src={link.src} alt={link.alt} />
-            <span>{link.title}</span>
-          </a>
-        </li>
+        <md-list-item headline={link.title} href={link.href}>
+          <md-icon slot="start">
+            <img src={link.src} alt={link.alt} />
+          </md-icon>
+        </md-list-item>
       ))}
-    </ul>
-  </div>
+    </md-list>
+  </md-outlined-card>
 
   <!-- Section 2 -->
-  <div class="bookmark-section">
-    <ul>
+  <md-outlined-card class="bookmark-section">
+    <md-list>
       {links.slice(5, 10).map((link) => ( <!-- Next 5 bookmarks -->
-        <li>
-          <a href={link.href}>
-            <img class="svg-icon" src={link.src} alt={link.alt} />
-            <span>{link.title}</span>
-          </a>
-        </li>
+        <md-list-item headline={link.title} href={link.href}>
+          <md-icon slot="start">
+            <img src={link.src} alt={link.alt} />
+          </md-icon>
+        </md-list-item>
       ))}
-    </ul>
-  </div>
+    </md-list>
+  </md-outlined-card>
 
   <!-- Section 3 -->
-  <div class="bookmark-section">
-    <ul>
+  <md-outlined-card class="bookmark-section">
+    <md-list>
       {links.slice(10, 15).map((link) => ( <!-- Next 5 bookmarks -->
-        <li>
-          <a href={link.href}>
-            <img class="svg-icon" src={link.src} alt={link.alt} />
-            <span>{link.title}</span>
-          </a>
-        </li>
+        <md-list-item headline={link.title} href={link.href}>
+          <md-icon slot="start">
+            <img src={link.src} alt={link.alt} />
+          </md-icon>
+        </md-list-item>
       ))}
-    </ul>
-  </div>
+    </md-list>
+  </md-outlined-card>
 
   <!-- Section 4 -->
-  <div class="bookmark-section">
-    <ul>
+  <md-outlined-card class="bookmark-section">
+    <md-list>
       {links.slice(15, 20).map((link) => ( <!-- Next 5 bookmarks -->
-        <li>
-          <a href={link.href}>
-            <img class="svg-icon" src={link.src} alt={link.alt} />
-            <span>{link.title}</span>
-          </a>
-        </li>
+        <md-list-item headline={link.title} href={link.href}>
+          <md-icon slot="start">
+            <img src={link.src} alt={link.alt} />
+          </md-icon>
+        </md-list-item>
       ))}
-    </ul>
-  </div>
+    </md-list>
+  </md-outlined-card>
 </section>
 
 <style>
@@ -74,64 +70,18 @@ links.sort((a, b) => a.title.localeCompare(b.title));
   }
 
   .bookmark-section {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    border-radius: 12px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-    padding: 10px;
-    flex: 1 1 calc(20% - 20px);
-    border: 1px solid black
+    /* background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); */ /* Removed for MWC styling */
+    /* border-radius: 12px; */ /* MWC card will have its own radius */
+    /* box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); */ /* MWC card will have its own shadow */
+    /* padding: 10px; */ /* MWC card has its own padding */
+    flex: 1 1 calc(20% - 20px); /* Keep flex sizing for now */
+    /* border: 1px solid black */ /* MWC card has its own border */
   }
 
-  ul {
-    list-style-type: none;
-    display: grid;
-    grid-template-columns: 1fr; /* Single column per section */
-    gap: 10px; /* Space between bookmarks */
-    padding: 0;
-  }
-
-  ul li {
-    font-size: 20px;
-  }
-
-  ul li a {
-    color: var(--text-color);
-    text-decoration: none;
-    display: flex;
-    flex-direction: row;
-    justify-content: flex-start;
-    align-items: center;
-    gap: 10px;
-    padding: 15px;
-    border-radius: var(--border-radius);
-    background-color: var(--card-item-background-color);
-    transition: all 0.3s ease; /* Smooth transition for all properties */
-  }
-
-  ul li a:hover {
-    background-color: var(--card-item-hover-background-color);
-    transform: scale(1.03); /* Slightly scale up the item */
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Add a shadow for a "lifted" effect */
-  }
-
-  ul li a img {
+  /* Ensure images inside md-icon are reasonably sized if they are too big by default */
+  md-icon img {
     max-width: 24px;
     max-height: 24px;
-  }
-
-  ul li a span {
-    white-space: nowrap; /* Prevent text from wrapping */
-  }
-
-  .svg-icon {
-    filter: invert(0%);
-  }
-
-  @media (prefers-color-scheme: dark) {
-    .svg-icon {
-      filter: invert(100%);
-    }
   }
 
   @media (max-width: 600px) {
@@ -140,5 +90,4 @@ links.sort((a, b) => a.title.localeCompare(b.title));
       gap: 10px;
     }
   }
-
 </style>
