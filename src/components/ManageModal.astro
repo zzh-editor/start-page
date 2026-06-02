@@ -2032,16 +2032,24 @@
     loginBtn.onclick = async () => {
       const email = emailInput.value.trim();
       const pw = pwInput.value;
-      if (!email || !pw) { errorMsg.textContent = "请输入邮箱和密码"; errorMsg.hidden = false; return; }
+      if (!email || !pw) { errorMsg.textContent = "请输入邮箱和密码"; errorMsg.style.color = "#ef4444"; errorMsg.hidden = false; return; }
       errorMsg.hidden = true;
       loginBtn.disabled = true;
       try {
-        await signInWithEmail(email, pw);
+        const user = await signInWithEmail(email, pw);
         emailInput.value = "";
         pwInput.value = "";
+        showToast(`已登录：${user?.email ?? email}`, "info");
+        // 显式刷新（onAuthChange 应已触发，但保险起见再调用一次）
+        await refreshUser();
+        // 登录成功后立即拉一次远端
+        doSync().catch(() => {});
       } catch (e: any) {
-        errorMsg.textContent = e?.message ?? "登录失败";
+        const msg = e?.message ?? "登录失败";
+        errorMsg.textContent = msg;
+        errorMsg.style.color = "#ef4444";
         errorMsg.hidden = false;
+        showToast(`登录失败：${msg}`, "error");
       }
       loginBtn.disabled = false;
     };
@@ -2049,21 +2057,23 @@
     signupBtn.onclick = async () => {
       const email = emailInput.value.trim();
       const pw = pwInput.value;
-      if (!email || !pw) { errorMsg.textContent = "请输入邮箱和密码"; errorMsg.hidden = false; return; }
-      if (pw.length < 6) { errorMsg.textContent = "密码至少 6 位"; errorMsg.hidden = false; return; }
+      if (!email || !pw) { errorMsg.textContent = "请输入邮箱和密码"; errorMsg.style.color = "#ef4444"; errorMsg.hidden = false; return; }
+      if (pw.length < 6) { errorMsg.textContent = "密码至少 6 位"; errorMsg.style.color = "#ef4444"; errorMsg.hidden = false; return; }
       errorMsg.hidden = true;
       signupBtn.disabled = true;
       try {
         await signUpWithEmail(email, pw);
         emailInput.value = "";
         pwInput.value = "";
-        errorMsg.textContent = "注册成功！请检查邮箱确认（如果开启了邮箱验证）";
-        errorMsg.hidden = false;
-        errorMsg.style.color = "#22c55e";
+        showToast(`已注册：${email}（如开启邮箱验证请前往邮箱确认）`, "info");
+        await refreshUser();
+        doSync().catch(() => {});
       } catch (e: any) {
-        errorMsg.textContent = e?.message ?? "注册失败";
-        errorMsg.hidden = false;
+        const msg = e?.message ?? "注册失败";
+        errorMsg.textContent = msg;
         errorMsg.style.color = "#ef4444";
+        errorMsg.hidden = false;
+        showToast(`注册失败：${msg}`, "error");
       }
       signupBtn.disabled = false;
     };
@@ -2071,24 +2081,36 @@
     linkBtn.onclick = async () => {
       const email = emailInput.value.trim();
       const pw = pwInput.value;
-      if (!email || !pw) { errorMsg.textContent = "请输入邮箱和密码"; errorMsg.hidden = false; return; }
-      if (pw.length < 6) { errorMsg.textContent = "密码至少 6 位"; errorMsg.hidden = false; return; }
+      if (!email || !pw) { errorMsg.textContent = "请输入邮箱和密码"; errorMsg.style.color = "#ef4444"; errorMsg.hidden = false; return; }
+      if (pw.length < 6) { errorMsg.textContent = "密码至少 6 位"; errorMsg.style.color = "#ef4444"; errorMsg.hidden = false; return; }
       errorMsg.hidden = true;
       linkBtn.disabled = true;
       try {
         await linkEmail(email, pw);
         emailInput.value = "";
         pwInput.value = "";
+        showToast(`已绑定邮箱：${email}，跨设备同步已开启`, "info");
+        await refreshUser();
+        // 绑定后立即推送一次本地数据到远端
+        doSync().catch(() => {});
       } catch (e: any) {
-        errorMsg.textContent = e?.message ?? "绑定失败";
-        errorMsg.hidden = false;
+        const msg = e?.message ?? "绑定失败";
+        errorMsg.textContent = msg;
         errorMsg.style.color = "#ef4444";
+        errorMsg.hidden = false;
+        showToast(`绑定失败：${msg}`, "error");
       }
       linkBtn.disabled = false;
     };
 
     logoutBtn.onclick = async () => {
-      await signOut();
+      try {
+        await signOut();
+        showToast("已退出登录", "info");
+        await refreshUser();
+      } catch (e: any) {
+        showToast(`退出失败：${e?.message ?? ""}`, "error");
+      }
     };
 
     document.getElementById("sync-email")!.onkeydown = (e) => {

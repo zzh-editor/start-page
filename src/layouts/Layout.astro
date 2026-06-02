@@ -167,6 +167,73 @@ const { title } = Astro.props;
     -webkit-backdrop-filter: blur(2px) !important;
   }
 
+  /* 通用 .bm-popover 基础定位：覆盖全屏并居中（fixed 不会被父级 stacking/overflow 影响，因为挂到 body 下） */
+  .bm-popover {
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+  }
+  .bm-popover[hidden] {
+    display: none;
+  }
+  .bm-popover-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+  }
+  .bm-popover-panel {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+    padding: 16px;
+    width: 100%;
+    max-width: 480px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .bm-popover-panel h3 {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .bm-popover-panel p {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .bm-popover-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 8px;
+  }
+  .bm-popover-panel input[type="text"],
+  .bm-popover-panel input[type="url"],
+  .bm-popover-panel input[type="email"],
+  .bm-popover-panel input[type="password"],
+  .bm-popover-panel textarea,
+  .bm-popover-panel select {
+    background: var(--surface-translucent);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 10px;
+    font-size: 13px;
+    font-family: inherit;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .bm-popover-panel input:focus,
+  .bm-popover-panel textarea:focus,
+  .bm-popover-panel select:focus {
+    outline: 1px solid var(--accent);
+  }
+
   :root[data-style="pixel"] .toast {
     backdrop-filter: blur(12px) !important;
     -webkit-backdrop-filter: blur(12px) !important;
