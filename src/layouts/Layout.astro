@@ -56,13 +56,9 @@ const { title } = Astro.props;
   <body>
     <slot />
 
-    <div id="sync-indicator" class="sync-global-indicator" hidden role="status" aria-live="polite"></div>
-
     <script>
       import { applySquircle } from "../lib/squircle";
       import { applyStyle } from "../lib/themes";
-      import { isConfigured } from "../lib/supabase";
-      import { onSyncStatus } from "../lib/sync";
       const currentStyle = document.documentElement.dataset.style;
       if (currentStyle === "pixel") {
         applyStyle("pixel");
@@ -72,22 +68,6 @@ const { title } = Astro.props;
       const mo = new MutationObserver(() => requestAnimationFrame(run));
       mo.observe(document.body, { childList: true, subtree: true });
       mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-style"] });
-
-      if (isConfigured()) {
-        const el = document.getElementById("sync-indicator")!;
-        el.hidden = false;
-        onSyncStatus((status) => {
-          const icons: Record<string, string> = {
-            idle: "\u25D0",
-            syncing: "\u21BB",
-            synced: "\u2713",
-            error: "\u2717",
-            offline: "\u26A0",
-          };
-          el.textContent = icons[status] ?? "\u25D0";
-          el.className = "sync-global-indicator " + status;
-        });
-      }
     </script>
   </body>
 </html>
@@ -351,41 +331,5 @@ const { title } = Astro.props;
       align-items: flex-start;
       padding-top: 4.5rem;
     }
-  }
-
-  /* ====================== 同步状态指示器 ====================== */
-  .sync-global-indicator {
-    position: fixed;
-    top: 8px;
-    right: 8px;
-    z-index: 999;
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    display: grid;
-    place-items: center;
-    font-size: 12px;
-    background: var(--surface-translucent);
-    border: 1px solid var(--border);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    cursor: default;
-    transition: all var(--transition);
-    color: var(--muted);
-  }
-  .sync-global-indicator.synced {
-    color: #22c55e;
-    border-color: color-mix(in srgb, #22c55e 40%, transparent);
-  }
-  .sync-global-indicator.error,
-  .sync-global-indicator.offline {
-    color: #ef4444;
-    border-color: color-mix(in srgb, #ef4444 40%, transparent);
-  }
-  .sync-global-indicator.syncing {
-    animation: sync-spin 1s linear infinite;
-  }
-  @keyframes sync-spin {
-    to { transform: rotate(360deg); }
   }
 </style>

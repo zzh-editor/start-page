@@ -7,12 +7,15 @@
   <div id="tabs-rect" data-squircle data-squircle-radius="16">
     <nav id="tabs" class="tabs" role="tablist" aria-label="分类"></nav>
   </div>
-  <button id="manage-btn" type="button" class="icon-btn" aria-label="管理书签" title="管理书签">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="3"></circle>
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-    </svg>
-  </button>
+  <div class="topbar-right">
+    <div id="sync-indicator" class="sync-indicator" role="status" aria-live="polite" hidden></div>
+    <button id="manage-btn" type="button" class="icon-btn" aria-label="管理书签" title="管理书签">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"></circle>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+      </svg>
+    </button>
+  </div>
 </div>
 
 <style is:global>
@@ -104,6 +107,46 @@
     height: 18px;
   }
 
+  /* 齿轮 + 同步指示器右侧容器 */
+  .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  /* 同步状态指示器：紧贴齿轮左侧，5s 后自动隐藏（页面刷新才重现） */
+  .sync-indicator {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 12px;
+    background: var(--surface-translucent);
+    border: 1px solid var(--border);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    cursor: default;
+    color: var(--muted);
+    transition: opacity 300ms ease;
+  }
+  .sync-indicator.synced {
+    color: #22c55e;
+    border-color: color-mix(in srgb, #22c55e 40%, transparent);
+  }
+  .sync-indicator.error,
+  .sync-indicator.offline {
+    color: #ef4444;
+    border-color: color-mix(in srgb, #ef4444 40%, transparent);
+  }
+  .sync-indicator.syncing {
+    animation: sync-spin 1s linear infinite;
+  }
+  @keyframes sync-spin {
+    to { transform: rotate(360deg); }
+  }
+
   @media (max-width: 600px) {
     .tab {
       padding: 5px 10px;
@@ -128,6 +171,32 @@
 <script>
   import { getState, subscribe, reorderCategory, type Store } from "../lib/store";
   import { escapeHtml } from "../lib/helpers";
+  import { isConfigured } from "../lib/supabase";
+  import { onSyncStatus } from "../lib/sync";
+
+  // ---------- 同步指示器：齿轮左侧，5s 自动隐藏 ----------
+  const syncEl = document.getElementById("sync-indicator")!;
+  let syncHideTimer: ReturnType<typeof setTimeout> | null = null;
+
+  if (isConfigured()) {
+    syncEl.hidden = false;
+    onSyncStatus((status) => {
+      const icons: Record<string, string> = {
+        idle: "\u25D0",
+        syncing: "\u21BB",
+        synced: "\u2713",
+        error: "\u2717",
+        offline: "\u26A0",
+      };
+      syncEl.textContent = icons[status] ?? "\u25D0";
+      syncEl.className = "sync-indicator " + status;
+      // 任何状态变化都重置 5s 自动隐藏计时器
+      if (syncHideTimer) clearTimeout(syncHideTimer);
+      syncHideTimer = setTimeout(() => {
+        syncEl.hidden = true;
+      }, 5000);
+    });
+  }
 
   const tabsEl = document.getElementById("tabs")!;
   const manageBtn = document.getElementById("manage-btn")!;
