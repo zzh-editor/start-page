@@ -156,6 +156,10 @@
           <span id="sync-indicator-text" class="sync-indicator">检查中...</span>
           <span id="sync-last-time" class="sync-muted"></span>
         </div>
+        <div id="sync-account-banner" class="sync-banner" data-state="loading" hidden>
+          <span class="sync-banner-icon" aria-hidden="true"></span>
+          <span class="sync-banner-text"></span>
+        </div>
         <button type="button" class="btn primary" id="sync-force-btn" hidden>手动同步</button>
         <hr class="sync-divider" />
         <div id="sync-auth-section">
@@ -164,15 +168,15 @@
             <p id="sync-user-meta" class="sync-muted"></p>
           </div>
           <div id="sync-auth-form">
-            <h4 class="sync-form-title">登录以跨设备同步</h4>
-            <p class="sync-muted" style="margin-bottom:8px">设置账号后，你的书签和设置将在所有设备上自动同步。</p>
+            <h4 class="sync-form-title" id="sync-auth-title">登录以跨设备同步</h4>
+            <p class="sync-muted" id="sync-auth-desc" style="margin-bottom:8px">设置账号后，你的书签和设置将在所有设备上自动同步。</p>
             <input type="email" id="sync-email" placeholder="邮箱" class="sync-input" />
             <input type="password" id="sync-password" placeholder="密码" class="sync-input" />
             <div class="sync-form-actions">
               <button type="button" class="btn primary" id="sync-login-btn">登录</button>
               <button type="button" class="btn" id="sync-signup-btn">注册</button>
-              <button type="button" class="btn danger" id="sync-link-btn" hidden>绑定邮箱</button>
-              <button type="button" class="btn danger" id="sync-logout-btn" hidden>退出登录</button>
+              <button type="button" class="btn primary" id="sync-link-btn" hidden>绑定邮箱到当前账号</button>
+              <button type="button" class="btn" id="sync-logout-btn" hidden>退出登录</button>
             </div>
             <p id="sync-error-msg" class="sync-error" hidden></p>
           </div>
@@ -895,6 +899,58 @@
     font-size: 12px;
     color: #ef4444;
     margin-top: 6px;
+  }
+  .sync-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    background: var(--surface-translucent);
+    font-size: 13px;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+  .sync-banner-icon {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    display: grid;
+    place-items: center;
+    font-size: 13px;
+    line-height: 1;
+  }
+  .sync-banner-text {
+    flex: 1;
+    line-height: 1.4;
+  }
+  .sync-banner[data-state="loading"] {
+    border-color: var(--border);
+    color: var(--muted);
+  }
+  .sync-banner[data-state="anon"] {
+    border-color: color-mix(in srgb, #f59e0b 40%, var(--border));
+    background: color-mix(in srgb, #f59e0b 10%, var(--surface-translucent));
+  }
+  .sync-banner[data-state="anon"] .sync-banner-icon::before {
+    content: "\26A0";
+    color: #f59e0b;
+  }
+  .sync-banner[data-state="signed-in"] {
+    border-color: color-mix(in srgb, #22c55e 40%, var(--border));
+    background: color-mix(in srgb, #22c55e 10%, var(--surface-translucent));
+  }
+  .sync-banner[data-state="signed-in"] .sync-banner-icon::before {
+    content: "\2713";
+    color: #22c55e;
+  }
+  .sync-banner[data-state="unconfigured"] {
+    border-color: color-mix(in srgb, #ef4444 40%, var(--border));
+    background: color-mix(in srgb, #ef4444 10%, var(--surface-translucent));
+  }
+  .sync-banner[data-state="unconfigured"] .sync-banner-icon::before {
+    content: "\2716";
+    color: #ef4444;
   }
   .sync-divider {
     border: none;
@@ -1843,11 +1899,15 @@
   function renderSyncPanel(): void {
     const indicator = document.getElementById("sync-indicator-text")!;
     const lastTime = document.getElementById("sync-last-time")!;
+    const banner = document.getElementById("sync-account-banner")!;
+    const bannerText = banner.querySelector(".sync-banner-text")!;
     const forceBtn = document.getElementById("sync-force-btn")! as HTMLButtonElement;
     const userInfo = document.getElementById("sync-user-info")!;
     const userEmail = document.getElementById("sync-user-email")!;
     const userMeta = document.getElementById("sync-user-meta")!;
     const authForm = document.getElementById("sync-auth-form")!;
+    const authTitle = document.getElementById("sync-auth-title")!;
+    const authDesc = document.getElementById("sync-auth-desc")!;
     const loginBtn = document.getElementById("sync-login-btn")! as HTMLButtonElement;
     const signupBtn = document.getElementById("sync-signup-btn")! as HTMLButtonElement;
     const linkBtn = document.getElementById("sync-link-btn")! as HTMLButtonElement;
@@ -1855,11 +1915,25 @@
     const errorMsg = document.getElementById("sync-error-msg")!;
     const emailInput = document.getElementById("sync-email") as HTMLInputElement;
     const pwInput = document.getElementById("sync-password") as HTMLInputElement;
+    const emailWrap = emailInput.classList.contains("sync-input") ? emailInput : emailInput;
+    const pwWrap = pwInput.classList.contains("sync-input") ? pwInput : pwInput;
 
     unsubscribeSyncStatus?.();
     unsubscribeAuth?.();
 
     syncEmail = emailInput.value || syncEmail;
+
+    function setBanner(state: "loading" | "anon" | "signed-in" | "unconfigured", text: string): void {
+      banner.dataset.state = state;
+      bannerText.textContent = text;
+      banner.hidden = false;
+    }
+
+    function showAuthForm(visible: boolean, title?: string, desc?: string): void {
+      authForm.hidden = !visible;
+      if (title) authTitle.textContent = title;
+      if (desc !== undefined) authDesc.textContent = desc;
+    }
 
     async function refreshUser() {
       const user = getCurrentUser();
@@ -1867,36 +1941,62 @@
       if (!isConfigured()) {
         indicator.textContent = "未配置 Supabase（参见 .env）";
         indicator.style.color = "var(--muted)";
+        setBanner("unconfigured", "未配置同步服务。在 Vercel 项目设置 PUBLIC_SUPABASE_URL 与 PUBLIC_SUPABASE_ANON_KEY 后重新部署即可启用。");
         forceBtn.hidden = true;
         userInfo.hidden = true;
-        authForm.innerHTML = `<p class="sync-muted">Supabase 未配置。请设置 <code>PUBLIC_SUPABASE_URL</code> 和 <code>PUBLIC_SUPABASE_ANON_KEY</code> 以启用同步。</p>`;
+        showAuthForm(false);
         return;
       }
 
-      if (user) {
-        userInfo.hidden = false;
-        userEmail.textContent = user.is_anonymous
-          ? "匿名用户（设备绑定）"
-          : user.email ?? "已登录";
-        userMeta.textContent = user.is_anonymous
-          ? "可绑定邮箱以跨设备同步数据"
-          : "数据已关联到你的账号，跨设备自动同步";
-        linkBtn.hidden = !user.is_anonymous;
-        logoutBtn.hidden = false;
-        loginBtn.hidden = true;
-        signupBtn.hidden = true;
-        document.getElementById("sync-email")!.closest(".sync-input")?.classList.add("hidden");
-        document.getElementById("sync-password")!.closest(".sync-input")?.classList.add("hidden");
-        errorMsg.hidden = true;
-      } else {
+      if (!user) {
+        indicator.textContent = "未登录";
+        indicator.style.color = "var(--muted)";
+        setBanner("loading", "正在连接 Supabase...");
+        forceBtn.hidden = true;
         userInfo.hidden = true;
-        linkBtn.hidden = true;
-        logoutBtn.hidden = true;
+        showAuthForm(true, "登录以跨设备同步", "设置账号后，你的书签和设置将在所有设备上自动同步。");
         loginBtn.hidden = false;
         signupBtn.hidden = false;
-        document.getElementById("sync-email")!.closest(".sync-input")?.classList.remove("hidden");
-        document.getElementById("sync-password")!.closest(".sync-input")?.classList.remove("hidden");
+        linkBtn.hidden = true;
+        logoutBtn.hidden = true;
+        emailWrap.hidden = false;
+        pwWrap.hidden = false;
+        errorMsg.hidden = true;
+        return;
       }
+
+      if (user.is_anonymous) {
+        indicator.textContent = "本地账号";
+        indicator.style.color = "#f59e0b";
+        setBanner("anon", "当前为设备本地账号（未跨设备同步）。登录或绑定邮箱后，可在多设备同步书签和设置。");
+        userInfo.hidden = false;
+        userEmail.textContent = "未绑定邮箱 · 本地账号";
+        userMeta.textContent = "";
+        forceBtn.hidden = false;
+        showAuthForm(true, "绑定邮箱以开启跨设备同步", "输入邮箱和密码后，当前设备的数据会关联到该账号，其他设备登录同一账号即可看到。");
+        loginBtn.hidden = true;
+        signupBtn.hidden = true;
+        linkBtn.hidden = false;
+        logoutBtn.hidden = false;
+        emailWrap.hidden = false;
+        pwWrap.hidden = false;
+        errorMsg.hidden = true;
+        return;
+      }
+
+      indicator.textContent = "已登录";
+      indicator.style.color = "#22c55e";
+      setBanner("signed-in", `已绑定邮箱：${user.email ?? ""}。所有设备登录此账号后自动同步。`);
+      userInfo.hidden = false;
+      userEmail.textContent = user.email ?? "已登录";
+      userMeta.textContent = "数据已关联到你的账号，跨设备自动同步";
+      forceBtn.hidden = false;
+      showAuthForm(false);
+      loginBtn.hidden = true;
+      signupBtn.hidden = true;
+      linkBtn.hidden = true;
+      logoutBtn.hidden = false;
+      errorMsg.hidden = true;
     }
 
     refreshUser();
@@ -1989,7 +2089,6 @@
 
     logoutBtn.onclick = async () => {
       await signOut();
-      forceBtn.hidden = true;
     };
 
     document.getElementById("sync-email")!.onkeydown = (e) => {
