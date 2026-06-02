@@ -749,11 +749,6 @@ const username = "zzh.editor";
       const suggest = document.getElementById("wf-suggest")!;
       if (!suggest.hidden) suggest.hidden = true;
     });
-
-    input.focus();
-    document.addEventListener("keydown", (e) => {
-      if (e.target === document.body) input.focus();
-    });
   }
 
   document.addEventListener("DOMContentLoaded", initializeTerminal);

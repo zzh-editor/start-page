@@ -3,33 +3,9 @@
 // 渲染策略：1 张大卡片 = 20 个 li（4 列网格）
 // tab 切换：命中优先 + 按 store.bookmarkSort 排序；未命中项轻度弱化
 // 超过 20 个时启用横向滑动分页（每页 1 张大卡片 = 20 个）
-// 长按 250ms 唤出扳手/X 操作按钮（150ms 淡入）
 ---
 
 <div id="bookmark-host"></div>
-<div id="bm-popover" class="bm-popover" role="dialog" aria-modal="true" aria-labelledby="bm-popover-title" hidden>
-  <div class="bm-popover-backdrop" data-popover-close></div>
-  <div class="bm-popover-panel" data-squircle data-squircle-radius="16">
-    <h3 id="bm-popover-title">编辑书签</h3>
-    <input type="text" id="bm-popover-name" placeholder="名称" />
-    <input type="url" id="bm-popover-url" placeholder="链接" />
-    <div class="bm-popover-actions">
-      <button type="button" class="btn" data-popover-close>取消</button>
-      <button type="button" class="btn primary" id="bm-popover-save">保存</button>
-    </div>
-  </div>
-</div>
-<div id="bm-confirm" class="bm-popover" role="dialog" aria-modal="true" aria-label="删除书签" hidden>
-  <div class="bm-popover-backdrop" data-confirm-close></div>
-  <div class="bm-popover-panel" data-squircle data-squircle-radius="16">
-    <h3>删除书签？</h3>
-    <p id="bm-confirm-text">此操作不可撤销。</p>
-    <div class="bm-popover-actions">
-      <button type="button" class="btn" data-confirm-close>取消</button>
-      <button type="button" class="btn danger" id="bm-confirm-ok">删除</button>
-    </div>
-  </div>
-</div>
 
 <style is:global>
   .bookmark-pages {
@@ -86,11 +62,6 @@
     -webkit-touch-callout: none;
   }
 
-  .bookmark-list li.action-mode a {
-    -webkit-user-select: none;
-    user-select: none;
-  }
-
   .bookmark-list li a {
     flex: 1;
     min-width: 0;
@@ -128,114 +99,6 @@
     transform: translateX(2px);
     opacity: 1 !important;
     filter: none !important;
-  }
-
-  /* 长按激活：扳手 + X 按钮淡入 */
-  .bookmark-list li .bm-actions {
-    display: flex;
-    gap: 4px;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 150ms ease;
-    flex-shrink: 0;
-  }
-
-  .bookmark-list li.action-mode .bm-actions {
-    opacity: 1;
-    pointer-events: auto;
-  }
-
-  .bm-act-btn {
-    width: 26px;
-    height: 26px;
-    display: grid;
-    place-items: center;
-    border: 1px solid var(--border);
-    background: var(--surface);
-    color: var(--text);
-    cursor: pointer;
-    flex-shrink: 0;
-    transition: background var(--transition);
-  }
-
-  .bm-act-btn:hover {
-    background: var(--hover);
-  }
-
-  .bm-act-btn.danger:hover {
-    background: color-mix(in srgb, #ef4444 14%, var(--hover));
-    color: #ef4444;
-  }
-
-  .bm-act-btn svg {
-    width: 14px;
-    height: 14px;
-  }
-
-  /* Popover (编辑/确认) */
-  .bm-popover {
-    position: fixed;
-    inset: 0;
-    z-index: 300;
-    display: grid;
-    place-items: center;
-    padding: 2rem 1rem;
-  }
-
-  .bm-popover[hidden] {
-    display: none;
-  }
-
-  .bm-popover-backdrop {
-    position: absolute;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.45);
-    backdrop-filter: blur(2px);
-    -webkit-backdrop-filter: blur(2px);
-  }
-
-  .bm-popover-panel {
-    position: relative;
-    width: 100%;
-    max-width: 420px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
-    padding: 18px 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .bm-popover-panel h3 {
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--text);
-  }
-
-  .bm-popover-panel p {
-    font-size: 13px;
-    color: var(--muted);
-  }
-
-  .bm-popover-panel input {
-    background: var(--surface-translucent);
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 6px 10px;
-    font-size: 13px;
-    font-family: inherit;
-  }
-
-  .bm-popover-panel input:focus {
-    outline: 1px solid var(--accent);
-  }
-
-  .bm-popover-actions {
-    display: flex;
-    gap: 8px;
-    justify-content: flex-end;
-    margin-top: 6px;
   }
 
   .empty-hint {
@@ -277,17 +140,14 @@
   import {
     getState,
     subscribe,
-    updateBookmark,
-    deleteBookmark,
     type Store,
     type Bookmark,
   } from "../lib/store";
-  import { escapeHtml, escapeAttr, showToast, saveFocus, restoreFocus } from "../lib/helpers";
+  import { escapeHtml, escapeAttr } from "../lib/helpers";
 
   const PAGE_SIZE = 20;
   const host = document.getElementById("bookmark-host")!;
   let activeCategory: string = "all";
-  let actionTarget: HTMLLIElement | null = null;
   let dataVersion = "";
 
   function getDataVersion(state: Store): string {
@@ -300,7 +160,6 @@
     const newCat = (e as CustomEvent<string>).detail || "all";
     if (newCat === activeCategory) return;
     activeCategory = newCat;
-    actionTarget = null;
     render(getState());
     window.dispatchEvent(new CustomEvent("pager:reset"));
   });
@@ -353,7 +212,7 @@
         (items) => `
         <div class="bookmark-page">
           <div class="bookmark-list" data-squircle data-squircle-radius="16">
-            <ul>${items.map((b) => renderItem(b, state)).join("")}</ul>
+            <ul>${items.map((b) => renderItem(b)).join("")}</ul>
           </div>
         </div>
       `,
@@ -362,8 +221,6 @@
 
     host.innerHTML = `<div class="bookmark-pages"><div class="bookmark-pages-track">${pagesHtml}</div></div>`;
     applyHighlight(activeCategory);
-    bindLongPress();
-    actionTarget = null;
 
     window.dispatchEvent(
       new CustomEvent("pager:update", { detail: { totalPages } }),
@@ -387,21 +244,12 @@
     return [...matched, ...unmatched];
   }
 
-  function renderItem(b: Bookmark, state: Store): string {
-    const cat = state.categories.find((c) => c.id === b.categoryId);
+  function renderItem(b: Bookmark): string {
     return `
       <li data-id="${b.id}" data-category="${b.categoryId}">
         <a href="${escapeAttr(b.href)}" title="${escapeAttr(b.href)}" data-squircle data-squircle-radius="10">
           <span>${escapeHtml(b.title)}</span>
         </a>
-        <span class="bm-actions">
-          <button type="button" class="bm-act-btn" data-act="edit" aria-label="编辑">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path></svg>
-          </button>
-          <button type="button" class="bm-act-btn danger" data-act="delete" aria-label="删除">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-          </button>
-        </span>
       </li>
     `;
   }
@@ -415,165 +263,4 @@
         li.classList.toggle("bookmark-nomatch", !isMatch);
       });
   }
-
-  // ---------- 长按 700ms 唤出扳手/X ----------
-  let docClickHandler: ((e: MouseEvent) => void) | null = null;
-
-  function bindLongPress(): void {
-    const items = document.querySelectorAll<HTMLLIElement>(".bookmark-list li");
-    items.forEach((li) => {
-      let timer: ReturnType<typeof setTimeout> | null = null;
-      let pressed = false;
-
-      const start = (e: MouseEvent | TouchEvent) => {
-        if (e instanceof MouseEvent && e.button !== 0) return;
-        pressed = true;
-        timer = setTimeout(() => {
-          if (pressed) activateActionMode(li);
-        }, 700);
-      };
-
-      const cancel = () => {
-        pressed = false;
-        if (timer) clearTimeout(timer);
-        timer = null;
-      };
-
-      li.addEventListener("mousedown", start);
-      li.addEventListener("touchstart", start, { passive: true });
-      li.addEventListener("mouseup", cancel);
-      li.addEventListener("mouseleave", cancel);
-      li.addEventListener("touchend", cancel);
-      li.addEventListener("touchcancel", cancel);
-      li.addEventListener("contextmenu", (e) => e.preventDefault());
-
-      const a = li.querySelector("a");
-      if (a) {
-        a.addEventListener("click", (e) => {
-          if (li.classList.contains("action-mode")) {
-            e.preventDefault();
-            e.stopPropagation();
-          }
-        });
-      }
-    });
-
-    if (docClickHandler) {
-      document.removeEventListener("click", docClickHandler);
-    }
-    docClickHandler = (e) => {
-      if (!actionTarget) return;
-      const target = e.target as HTMLElement;
-      if (target.closest(".bm-actions")) return;
-      if (actionTarget.contains(target)) return;
-      deactivateActionMode();
-    };
-    document.addEventListener("click", docClickHandler);
-  }
-
-  // 事件委托：#bookmark-host 统一处理编辑/删除按钮点击
-  host.addEventListener("click", (e) => {
-    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-act]");
-    if (!btn) return;
-    const li = btn.closest<HTMLLIElement>("li");
-    if (!li) return;
-    const id = li.dataset.id;
-    if (!id) return;
-    if (btn.dataset.act === "edit") {
-      openEditPopover(id);
-    } else if (btn.dataset.act === "delete") {
-      openConfirmPopover(id);
-    }
-  });
-
-  function activateActionMode(li: HTMLLIElement): void {
-    if (actionTarget && actionTarget !== li) {
-      actionTarget.classList.remove("action-mode");
-    }
-    actionTarget = li;
-    li.classList.add("action-mode");
-  }
-
-  function deactivateActionMode(): void {
-    if (!actionTarget) return;
-    actionTarget.classList.remove("action-mode");
-    actionTarget = null;
-  }
-
-  // ---------- 编辑弹层 ----------
-  const editPopover = document.getElementById("bm-popover")!;
-  const editName = document.getElementById("bm-popover-name") as HTMLInputElement;
-  const editUrl = document.getElementById("bm-popover-url") as HTMLInputElement;
-  const editSave = document.getElementById("bm-popover-save") as HTMLButtonElement;
-  let editingId: string | null = null;
-
-  editPopover.querySelectorAll<HTMLElement>("[data-popover-close]").forEach((el) =>
-    el.addEventListener("click", closeEditPopover),
-  );
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !editPopover.hidden) closeEditPopover();
-    if (e.key === "Escape" && !confirmPopover.hidden) closeConfirmPopover();
-  });
-
-  function openEditPopover(id: string): void {
-    const bm = getState().bookmarks.find((b) => b.id === id);
-    if (!bm) return;
-    editingId = id;
-    editName.value = bm.title;
-    editUrl.value = bm.href;
-    document.getElementById("bm-popover-title")!.textContent = `编辑：${bm.title}`;
-    saveFocus();
-    editPopover.hidden = false;
-    setTimeout(() => editName.focus(), 0);
-  }
-
-  function closeEditPopover(): void {
-    editPopover.hidden = true;
-    editingId = null;
-    restoreFocus();
-  }
-
-  editSave.addEventListener("click", () => {
-    if (!editingId) return;
-    const title = editName.value.trim();
-    const href = editUrl.value.trim();
-    if (!href) return;
-    updateBookmark(editingId, { title, href });
-    closeEditPopover();
-    showToast("书签已更新", "info");
-  });
-
-  // ---------- 确认删除弹层 ----------
-  const confirmPopover = document.getElementById("bm-confirm")!;
-  const confirmText = document.getElementById("bm-confirm-text")!;
-  const confirmOk = document.getElementById("bm-confirm-ok") as HTMLButtonElement;
-  let pendingDeleteId: string | null = null;
-
-  confirmPopover.querySelectorAll<HTMLElement>("[data-confirm-close]").forEach((el) =>
-    el.addEventListener("click", closeConfirmPopover),
-  );
-
-  function openConfirmPopover(id: string): void {
-    const bm = getState().bookmarks.find((b) => b.id === id);
-    if (!bm) return;
-    pendingDeleteId = id;
-    confirmText.textContent = `确定要删除「${bm.title}」吗？此操作不可撤销。`;
-    saveFocus();
-    confirmPopover.hidden = false;
-  }
-
-  function closeConfirmPopover(): void {
-    confirmPopover.hidden = true;
-    pendingDeleteId = null;
-    restoreFocus();
-  }
-
-  confirmOk.addEventListener("click", () => {
-    if (!pendingDeleteId) return;
-    deleteBookmark(pendingDeleteId);
-    closeConfirmPopover();
-    showToast("书签已删除", "info");
-  });
-
-
 </script>

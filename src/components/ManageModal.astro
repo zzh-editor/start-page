@@ -1067,7 +1067,9 @@
     mmConfirmText.textContent = message;
     mmConfirmCallback = onConfirm;
     saveFocus();
-    mmConfirm.hidden = false;
+    requestAnimationFrame(() => {
+      mmConfirm.hidden = false;
+    });
   }
 
   function closeModalConfirm(): void {
