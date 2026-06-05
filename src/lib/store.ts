@@ -433,7 +433,7 @@ export function reorderCategory(fromIndex: number, toIndex: number): void {
 }
 
 // ---------- 批量导入 ----------
-export type ParsedLine = { href: string; title?: string };
+export type ParsedLine = { href: string; title?: string; categoryName?: string };
 
 export function parseBatchInput(text: string): ParsedLine[] {
   return text
@@ -441,22 +441,36 @@ export function parseBatchInput(text: string): ParsedLine[] {
     .map((line) => line.trim())
     .filter((line) => line.length > 0)
     .map<ParsedLine>((line) => {
-      const m = line.match(/^(\S+)(?:\s+(.+))?$/);
+      const m = line.match(/^(\S+)(?:\s+(.+?)(?:\s+(.+))?)?$/);
       if (!m) return { href: line };
-      return { href: m[1], title: m[2]?.trim() };
+      return { href: m[1], title: m[2]?.trim(), categoryName: m[3]?.trim() };
     })
     .filter((p) => p.href);
 }
 
-export function addBookmarksBatch(items: ParsedLine[], categoryId: string): Bookmark[] {
+export function addBookmarksBatch(items: ParsedLine[], defaultCategoryId: string): Bookmark[] {
   const now = Date.now();
+
+  const catNameCache = new Map<string, string>();
+  for (const item of items) {
+    if (!item.categoryName) continue;
+    const key = item.categoryName.toLowerCase();
+    if (catNameCache.has(key)) continue;
+    const state = getState();
+    const existing = state.categories.find((c) => c.name.toLowerCase() === key);
+    catNameCache.set(key, existing ? existing.id : addCategory(item.categoryName).id);
+  }
+
   const created: Bookmark[] = items.map((item, idx) => {
     const href = normalizeUrl(item.href);
+    const catId = item.categoryName
+      ? (catNameCache.get(item.categoryName.toLowerCase()) || defaultCategoryId)
+      : defaultCategoryId;
     return {
       id: uid(),
       href,
       title: item.title?.trim() || extractHostname(href),
-      categoryId,
+      categoryId: catId,
       createdAt: now + idx,
     };
   });

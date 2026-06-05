@@ -126,6 +126,46 @@
     margin: 0 2px;
   }
 
+  .pager-capsule {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: color-mix(in srgb, var(--text) 20%, transparent);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-radius: 100px;
+    z-index: 10;
+    pointer-events: auto;
+  }
+
+  .pager-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--border);
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    flex-shrink: 0;
+  }
+
+  .pager-dot.active {
+    background: var(--accent);
+    width: 16px;
+    border-radius: 4px;
+  }
+
+  .pager-dot:hover {
+    background: color-mix(in srgb, var(--accent) 60%, transparent);
+    transform: scale(1.3);
+  }
+
   @media (max-width: 900px) {
     .bookmark-list ul {
       grid-template-columns: repeat(2, 1fr);
@@ -156,6 +196,8 @@
   const host = document.getElementById("bookmark-host")!;
   let activeCategory: string = "all";
   let dataVersion = "";
+  let currentPage = 0;
+  let totalPages = 0;
 
   function getDataVersion(state: Store): string {
     const { bookmarks, bookmarkSort } = state;
@@ -167,8 +209,7 @@
     const newCat = (e as CustomEvent<string>).detail || "all";
     if (newCat === activeCategory) return;
     activeCategory = newCat;
-    render(getState());
-    window.dispatchEvent(new CustomEvent("pager:reset"));
+  requestAnimationFrame(() => render(getState()));
   });
 
   window.addEventListener("shortcut:tab", (e) => {
@@ -198,48 +239,52 @@
 
     if (bookmarks.length === 0) {
       host.innerHTML = `<div class="empty-hint">还没有书签。点击右上角 <strong>⚙</strong> 添加，或按 <kbd>/</kbd> 唤出管理面板。</div>`;
-      window.dispatchEvent(new CustomEvent("pager:update", { detail: { totalPages: 0 } }));
+      totalPages = 0;
       return;
     }
 
     if (activeCategory !== "all" && !bookmarks.some((b) => b.categoryId === activeCategory)) {
       host.innerHTML = `<div class="empty-hint">该分类下还没有书签。</div>`;
-      window.dispatchEvent(new CustomEvent("pager:update", { detail: { totalPages: 0 } }));
+      totalPages = 0;
       return;
     }
 
+    currentPage = 0;
     const sorted = sortBookmarks(bookmarks, activeCategory, state.bookmarkSort);
-    const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
+    totalPages = Math.ceil(sorted.length / PAGE_SIZE);
     const pages: Bookmark[][] = Array.from({ length: totalPages }, (_, i) =>
       sorted.slice(i * PAGE_SIZE, (i + 1) * PAGE_SIZE),
     );
 
     const pagesHtml = pages
-      .map(
-        (items) => {
-          const padded: (Bookmark | null)[] = [...items];
-          while (padded.length < PAGE_SIZE) {
-            padded.push(null);
-          }
-          return `
+      .map((items) => {
+        const padded: (Bookmark | null)[] = [...items];
+        while (padded.length < PAGE_SIZE) padded.push(null);
+        return `
         <div class="bookmark-page">
           <div class="bookmark-list" data-squircle data-squircle-radius="16">
             <ul>${padded.map((b) => b ? renderItem(b) : renderPlaceholder()).join("")}</ul>
           </div>
-        </div>
-      `;
-        },
-      )
+        </div>`;
+      })
       .join("");
 
-    host.innerHTML = `<div class="bookmark-pages"><div class="bookmark-pages-track">${pagesHtml}</div></div>`;
+    const dotsHtml = totalPages > 1
+      ? `<div class="pager-capsule">${Array.from({ length: totalPages }, (_, i) =>
+          `<button type="button" class="pager-dot${i === 0 ? " active" : ""}" data-page="${i}" aria-label="第 ${i + 1} 页"></button>`
+        ).join("")}</div>`
+      : "";
+
+    host.innerHTML = `<div class="bookmark-pages">${dotsHtml}<div class="bookmark-pages-track">${pagesHtml}</div></div>`;
     applyHighlight(activeCategory);
 
-    window.dispatchEvent(
-      new CustomEvent("pager:update", { detail: { totalPages } }),
-    );
-    // 每次重建 DOM 后重新绑定 scroll 监听（分页圆点同步）
-    window.dispatchEvent(new CustomEvent("pager:bind"));
+    if (totalPages > 1) {
+      host.querySelectorAll<HTMLButtonElement>(".pager-dot").forEach((btn) => {
+        btn.addEventListener("click", () => scrollToPage(Number(btn.dataset.page)));
+      });
+    }
+
+    bindTrackScroll();
   }
 
   function sortBookmarks(items: Bookmark[], active: string, mode: Store["bookmarkSort"]): Bookmark[] {
@@ -280,5 +325,33 @@
         li.classList.toggle("bookmark-match", isMatch && active !== "all");
         li.classList.toggle("bookmark-nomatch", !isMatch);
       });
+  }
+
+  function onTrackScroll(this: HTMLElement): void {
+    const pageWidth = this.clientWidth;
+    if (pageWidth > 0) {
+      const newPage = Math.round(this.scrollLeft / pageWidth);
+      if (newPage !== currentPage) {
+        currentPage = newPage;
+        host.querySelectorAll<HTMLButtonElement>(".pager-dot").forEach((btn, i) => {
+          btn.classList.toggle("active", i === currentPage);
+        });
+      }
+    }
+  }
+
+  function bindTrackScroll(): void {
+    const oldTrack = document.querySelector<HTMLElement>(".bookmark-pages-track");
+    if (oldTrack) oldTrack.removeEventListener("scroll", onTrackScroll);
+    const track = document.querySelector<HTMLElement>(".bookmark-pages-track");
+    if (track) track.addEventListener("scroll", onTrackScroll, { passive: true });
+  }
+
+  function scrollToPage(index: number): void {
+    const track = document.querySelector<HTMLElement>(".bookmark-pages-track");
+    if (track) {
+      currentPage = index;
+      track.scrollTo({ left: index * track.clientWidth, behavior: "smooth" });
+    }
   }
 </script>

@@ -96,6 +96,7 @@ const username = "zzh.editor";
   }
 
   .engine-item.active {
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
     color: var(--accent);
     font-weight: 600;
   }
@@ -106,7 +107,7 @@ const username = "zzh.editor";
     background: var(--surface);
     border: 1px solid var(--border);
     box-shadow: var(--shadow);
-    z-index: 99;
+    z-index: 100;
     display: flex;
     flex-direction: column;
     padding: 4px 0;
@@ -260,7 +261,10 @@ const username = "zzh.editor";
       const observer = new MutationObserver(() => {
         const previousValue = input.value;
         elements = refreshElements();
-        if (previousValue) highlightMatches(previousValue.toLowerCase(), elements);
+        if (previousValue) {
+          highlightMatches(previousValue.toLowerCase(), elements);
+          scrollToFirstMatch(elements);
+        }
       });
       observer.observe(host, { childList: true, subtree: true });
     }
@@ -276,6 +280,7 @@ const username = "zzh.editor";
 
     input.addEventListener("input", () => {
       highlightMatches(input.value.toLowerCase(), elements);
+      scrollToFirstMatch(elements);
       const v = input.value;
       const wfPrefix = v.match(/^(wf|workflow)\s*(.*)$/i);
       if (wfPrefix) {
@@ -332,6 +337,7 @@ const username = "zzh.editor";
       }
 
       if (event.key === "Enter") {
+        const fromSuggest = !suggest.hidden && wfFiltered.length > 0;
         if (!suggest.hidden) suggest.hidden = true;
 
         const value = input.value.trim();
@@ -339,6 +345,29 @@ const username = "zzh.editor";
 
         history.push(value);
         historyIndex = history.length;
+
+        // 从建议列表选择的工作流，直接执行
+        if (fromSuggest) {
+          const wf = wfFiltered[wfSuggestionIndex];
+          if (wf) {
+            const state = (window as any).__startpageStore?.();
+            if (state) {
+              const bmUrls = state.bookmarks
+                .filter((b: any) => wf.bookmarkIds?.includes(b.id))
+                .map((b: any) => b.href);
+              const allUrls: string[] = (wf.urls?.length ? wf.urls : bmUrls);
+              if (allUrls.length > 0) {
+                openUrls(allUrls);
+                showToast(`已打开 ${allUrls.length} 个标签页（${wf.name}）`, "info");
+              } else {
+                showToast(`工作流「${wf.name}」中没有链接`, "error");
+              }
+            }
+          }
+          input.value = "";
+          resetStyles(elements);
+          return;
+        }
 
         const addMatch = value.match(/^add(?:\s+(\S+))?(?:\s+(.+?)(?:\s+(.+))?)?$/i);
         if (addMatch) {
@@ -489,6 +518,23 @@ const username = "zzh.editor";
       input.value = "wf " + wf.name;
       document.getElementById("wf-suggest")!.hidden = true;
       input.focus();
+    }
+
+    function scrollToFirstMatch(elements: NodeListOf<HTMLAnchorElement>): void {
+      for (const el of elements) {
+        const li = el.parentElement;
+        if (li?.classList.contains("bookmark-match")) {
+          const page = li.closest(".bookmark-page");
+          if (page) {
+            const track = page.closest(".bookmark-pages-track");
+            if (track) {
+              const pageIndex = Array.from(track.children).indexOf(page);
+              track.scrollTo({ left: pageIndex * track.clientWidth, behavior: "smooth" });
+            }
+          }
+          break;
+        }
+      }
     }
 
     window.addEventListener("tabs:change", () => {
