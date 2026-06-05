@@ -21,14 +21,6 @@ export function getCurrentUser(): User | null {
   return currentUser;
 }
 
-async function anonSignIn(): Promise<User | null> {
-  const supabase = getClient();
-  if (!supabase) return null;
-  const { data, error } = await supabase.auth.signInAnonymously();
-  if (error || !data?.user) return null;
-  return data.user;
-}
-
 async function restoreSession(): Promise<User | null> {
   const supabase = getClient();
   if (!supabase) return null;
@@ -44,8 +36,7 @@ export async function initAuth(): Promise<User | null> {
     return initPromise;
   }
   initPromise = (async () => {
-    let user = await restoreSession();
-    if (!user) user = await anonSignIn();
+    const user = await restoreSession();
     currentUser = user;
     notify();
 
@@ -84,8 +75,6 @@ export async function signUpWithEmail(email: string, password: string): Promise<
 export async function linkEmail(email: string, password: string): Promise<User | null> {
   const supabase = getClient();
   if (!supabase) return null;
-  const anonUser = currentUser;
-  if (!anonUser?.is_anonymous) throw new Error("只有匿名用户才能绑定邮箱");
   const { data, error } = await supabase.auth.updateUser({ email, password });
   if (error) throw error;
   currentUser = data.user;
@@ -101,6 +90,22 @@ export async function signOut(): Promise<void> {
   notify();
 }
 
-export function isAnonymous(): boolean {
-  return currentUser?.is_anonymous ?? false;
+export async function resetPassword(email: string): Promise<void> {
+  const supabase = getClient();
+  if (!supabase) return;
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin,
+  });
+  if (error) throw error;
+}
+
+export async function resendVerification(): Promise<void> {
+  const supabase = getClient();
+  if (!supabase) return;
+  const { error } = await supabase.auth.resend({ type: "signup", email: currentUser?.email ?? "" });
+  if (error) throw error;
+}
+
+export function isEmailVerified(): boolean {
+  return currentUser?.email_confirmed_at !== null;
 }

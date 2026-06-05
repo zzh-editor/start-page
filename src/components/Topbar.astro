@@ -172,31 +172,47 @@
   import { getState, subscribe, reorderCategory, type Store } from "../lib/store";
   import { escapeHtml } from "../lib/helpers";
   import { isConfigured } from "../lib/supabase";
+  import { getCurrentUser, onAuthChange } from "../lib/auth";
   import { onSyncStatus } from "../lib/sync";
 
-  // ---------- 同步指示器：齿轮左侧，5s 自动隐藏 ----------
+  // ---------- 同步指示器：齿轮左侧，仅已登录且同步非 idle 时显示，5s 自动隐藏 ----------
   const syncEl = document.getElementById("sync-indicator")!;
   let syncHideTimer: ReturnType<typeof setTimeout> | null = null;
+  let syncIndicatorStatus: string | null = null;
+  let syncIndicatorUser: boolean = false;
 
-  if (isConfigured()) {
-    syncEl.hidden = false;
-    onSyncStatus((status) => {
-      const icons: Record<string, string> = {
-        idle: "\u25D0",
-        syncing: "\u21BB",
-        synced: "\u2713",
-        error: "\u2717",
-        offline: "\u26A0",
-      };
-      syncEl.textContent = icons[status] ?? "\u25D0";
-      syncEl.className = "sync-indicator " + status;
-      // 任何状态变化都重置 5s 自动隐藏计时器
+  function updateSyncIndicator() {
+    const shown = syncIndicatorUser && syncIndicatorStatus !== null && syncIndicatorStatus !== "idle" && isConfigured();
+    if (shown) {
+      syncEl.hidden = false;
       if (syncHideTimer) clearTimeout(syncHideTimer);
       syncHideTimer = setTimeout(() => {
         syncEl.hidden = true;
       }, 5000);
-    });
+    } else {
+      syncEl.hidden = true;
+      if (syncHideTimer) clearTimeout(syncHideTimer);
+    }
   }
+
+  onAuthChange((user) => {
+    syncIndicatorUser = !!user;
+    updateSyncIndicator();
+  });
+
+  onSyncStatus((status) => {
+    syncIndicatorStatus = status;
+    const icons: Record<string, string> = {
+      idle: "\u25D0",
+      syncing: "\u21BB",
+      synced: "\u2713",
+      error: "\u2717",
+      offline: "\u26A0",
+    };
+    syncEl.textContent = icons[status] ?? "\u25D0";
+    syncEl.className = "sync-indicator " + status;
+    updateSyncIndicator();
+  });
 
   const tabsEl = document.getElementById("tabs")!;
   const manageBtn = document.getElementById("manage-btn")!;

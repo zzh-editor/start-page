@@ -6,8 +6,7 @@
 // - 提供订阅机制，让 UI 响应式刷新
 // =====================================================================
 
-import { enqueueSync, fetchRemoteStore, initSync } from "./sync";
-import { initAuth } from "./auth";
+import { enqueueSync } from "./sync";
 
 export type ThemeMode = "light" | "dark";
 export type ThemeStyle = "default" | "pixel";
@@ -203,11 +202,13 @@ let state: Store | null = null;
 
 let _remoteInitDone = false;
 
-function scheduleRemoteInit(): void {
+export function initRemoteSync(): void {
   if (_remoteInitDone) return;
   _remoteInitDone = true;
   setTimeout(async () => {
     try {
+      const { initAuth } = await import("./auth");
+      const { fetchRemoteStore, initSync } = await import("./sync");
       const user = await initAuth();
       if (!user) return;
       const { store, hasRemoteData } = await fetchRemoteStore();
@@ -243,7 +244,6 @@ export function getState(): Store {
   }
   if (!state) {
     state = load();
-    scheduleRemoteInit();
   }
   return state;
 }

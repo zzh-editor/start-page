@@ -10,6 +10,10 @@ const syncListeners = new Set<(status: SyncStatus) => void>();
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
 let lastStoreVersion = "";
 
+function assertCanSync(): boolean {
+  return isConfigured() && !!getCurrentUser();
+}
+
 export function onSyncStatus(fn: (status: SyncStatus) => void): () => void {
   syncListeners.add(fn);
   fn(_syncStatus);
@@ -205,7 +209,7 @@ export async function doSync(): Promise<void> {
     setSyncStatus("offline");
     return;
   }
-  if (!isConfigured() || !getCurrentUser()) {
+  if (!assertCanSync()) {
     setSyncStatus("idle");
     return;
   }
@@ -225,13 +229,11 @@ export function enqueueSync(): void {
 
 // ---------- 启动同步（拉取）----------
 export async function initSync(): Promise<boolean> {
-  if (!isConfigured()) return false;
+  if (!assertCanSync()) return false;
   if (!navigator.onLine) {
     setSyncStatus("offline");
     return false;
   }
-  const user = getCurrentUser();
-  if (!user) return false;
 
   setSyncStatus("syncing");
   const { store, hasRemoteData } = await pullData();

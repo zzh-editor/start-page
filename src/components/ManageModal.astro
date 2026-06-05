@@ -152,33 +152,138 @@
 
       <!-- ============== 同步 ============== -->
       <section class="subpanel sync-panel" data-subpanel="sync" hidden>
-        <div id="sync-status-bar">
-          <span id="sync-indicator-text" class="sync-indicator">检查中...</span>
-          <span id="sync-last-time" class="sync-muted"></span>
-        </div>
-        <div id="sync-account-banner" class="sync-banner" data-state="loading" hidden>
-          <span class="sync-banner-icon" aria-hidden="true"></span>
-          <span class="sync-banner-text"></span>
-        </div>
-        <button type="button" class="btn primary" id="sync-force-btn" hidden>手动同步</button>
-        <hr class="sync-divider" />
-        <div id="sync-auth-section">
-          <div id="sync-user-info" hidden>
-            <p id="sync-user-email" class="sync-user-line"></p>
-            <p id="sync-user-meta" class="sync-muted"></p>
-          </div>
-          <div id="sync-auth-form">
-            <h4 class="sync-form-title" id="sync-auth-title">登录以跨设备同步</h4>
-            <p class="sync-muted" id="sync-auth-desc" style="margin-bottom:8px">设置账号后，你的书签和设置将在所有设备上自动同步。</p>
-            <input type="email" id="sync-email" placeholder="邮箱" class="sync-input" />
-            <input type="password" id="sync-password" placeholder="密码" class="sync-input" />
-            <div class="sync-form-actions">
-              <button type="button" class="btn primary" id="sync-login-btn">登录</button>
-              <button type="button" class="btn" id="sync-signup-btn">注册</button>
-              <button type="button" class="btn primary" id="sync-link-btn" hidden>绑定邮箱到当前账号</button>
-              <button type="button" class="btn" id="sync-logout-btn" hidden>退出登录</button>
+        <div class="sync-panel-layout">
+          <!-- 左侧：状态信息 -->
+          <div class="sync-status-grid">
+            <div class="sync-status-card">
+              <h4 class="sync-section-title">账号</h4>
+              <div class="sync-account-info" id="sync-account-info">
+                <div class="sync-account-placeholder">未登录</div>
+              </div>
             </div>
-            <p id="sync-error-msg" class="sync-error" hidden></p>
+            <div class="sync-status-card">
+              <h4 class="sync-section-title">同步状态</h4>
+              <div class="sync-state-info" id="sync-state-info">
+                <div class="sync-state-row">
+                  <span class="sync-state-label">状态</span>
+                  <span id="sync-indicator-text" class="sync-state-value">就绪</span>
+                </div>
+                <div class="sync-state-row">
+                  <span class="sync-state-label">最后同步</span>
+                  <span id="sync-last-time" class="sync-state-value sync-muted">—</span>
+                </div>
+                <div class="sync-state-row">
+                  <span class="sync-state-label">存储</span>
+                  <span id="sync-storage-info" class="sync-state-value sync-muted">本地: — · 远程: —</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 右侧：操作区 -->
+          <div class="sync-actions">
+            <div class="sync-action-group" id="sync-unauth-actions" hidden>
+              <button type="button" class="btn primary sync-btn-wide" id="sync-login-btn">登录</button>
+              <button type="button" class="btn sync-btn-wide" id="sync-signup-btn">注册</button>
+            </div>
+            <div class="sync-action-group" id="sync-auth-actions" hidden>
+              <button type="button" class="btn primary sync-btn-wide" id="sync-force-btn">立即同步</button>
+              <label class="sync-toggle">
+                <input type="checkbox" id="sync-auto-toggle" checked />
+                <span class="sync-toggle-slider"></span>
+                <span class="sync-toggle-label">自动同步</span>
+              </label>
+              <button type="button" class="btn sync-btn-wide" id="sync-logout-btn">退出登录</button>
+            </div>
+            <div class="sync-action-group" id="sync-unconfigured" hidden>
+              <p class="sync-muted">同步功能需配置 Supabase</p>
+              <a href="https://github.com/your-repo/zzhstart-page#supabase-%E9%85%8D%E7%BD%AE" target="_blank" rel="noopener" class="sync-doc-link">查看配置文档 →</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- 登录/注册模态框 -->
+        <div id="sync-auth-modal" class="sync-modal" role="dialog" aria-modal="true" aria-labelledby="sync-modal-title" hidden>
+          <div class="sync-modal-backdrop" data-sync-modal-close></div>
+          <div class="sync-modal-panel" data-squircle data-squircle-radius="16">
+            <h3 id="sync-modal-title" class="sync-modal-title">登录</h3>
+            <p class="sync-modal-desc" id="sync-modal-desc">登录后可跨设备同步书签和设置</p>
+            <div class="sync-modal-tabs" role="tablist">
+              <button type="button" role="tab" aria-selected="true" class="sync-modal-tab active" data-sync-tab="login">登录</button>
+              <button type="button" role="tab" aria-selected="false" class="sync-modal-tab" data-sync-tab="signup">注册</button>
+            </div>
+            <div class="sync-modal-panels">
+              <!-- 登录面板 -->
+              <div class="sync-modal-panel-content" data-sync-panel="login" hidden>
+                <div class="sync-field">
+                  <label for="sync-modal-email" class="sr-only">邮箱</label>
+                  <input type="email" id="sync-modal-email" placeholder="邮箱" class="sync-input" autocomplete="email" />
+                </div>
+                <div class="sync-field">
+                  <label for="sync-modal-password" class="sr-only">密码</label>
+                  <input type="password" id="sync-modal-password" placeholder="密码" class="sync-input" autocomplete="current-password" />
+                </div>
+                <button type="button" class="btn sync-link-btn" id="sync-forgot-password">忘记密码？</button>
+                <p id="sync-modal-error" class="sync-error" hidden></p>
+                <div class="sync-modal-actions">
+                  <button type="button" class="btn primary sync-btn-wide" id="sync-modal-login-btn">登录</button>
+                </div>
+              </div>
+              <!-- 注册面板 -->
+              <div class="sync-modal-panel-content" data-sync-panel="signup" hidden>
+                <div class="sync-field">
+                  <label for="sync-modal-signup-email" class="sr-only">邮箱</label>
+                  <input type="email" id="sync-modal-signup-email" placeholder="邮箱" class="sync-input" autocomplete="email" />
+                </div>
+                <div class="sync-field">
+                  <label for="sync-modal-signup-password" class="sr-only">密码</label>
+                  <input type="password" id="sync-modal-signup-password" placeholder="密码（至少 6 位）" class="sync-input" autocomplete="new-password" />
+                </div>
+                <p id="sync-modal-signup-error" class="sync-error" hidden></p>
+                <div class="sync-modal-actions">
+                  <button type="button" class="btn primary sync-btn-wide" id="sync-modal-signup-btn">注册</button>
+                </div>
+              </div>
+            </div>
+            <div class="sync-modal-footer">
+              <button type="button" class="btn sync-link-btn" data-sync-modal-close>取消</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 密码重置模态框 -->
+        <div id="sync-reset-modal" class="sync-modal" role="dialog" aria-modal="true" aria-labelledby="sync-reset-title" hidden>
+          <div class="sync-modal-backdrop" data-sync-reset-close></div>
+          <div class="sync-modal-panel" data-squircle data-squircle-radius="16">
+            <h3 id="sync-reset-title" class="sync-modal-title">重置密码</h3>
+            <p class="sync-modal-desc">输入邮箱，我们将发送重置链接到你的邮箱</p>
+            <div class="sync-field">
+              <label for="sync-reset-email" class="sr-only">邮箱</label>
+              <input type="email" id="sync-reset-email" placeholder="邮箱" class="sync-input" autocomplete="email" />
+            </div>
+            <p id="sync-reset-error" class="sync-error" hidden></p>
+            <p id="sync-reset-success" class="sync-success" hidden></p>
+            <div class="sync-modal-actions">
+              <button type="button" class="btn primary sync-btn-wide" id="sync-reset-send-btn">发送重置邮件</button>
+            </div>
+            <div class="sync-modal-footer">
+              <button type="button" class="btn sync-link-btn" data-sync-reset-close>取消</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 邮箱验证提示模态框 -->
+        <div id="sync-verify-modal" class="sync-modal" role="dialog" aria-modal="true" aria-labelledby="sync-verify-title" hidden>
+          <div class="sync-modal-backdrop" data-sync-verify-close></div>
+          <div class="sync-modal-panel" data-squircle data-squircle-radius="16">
+            <h3 id="sync-verify-title" class="sync-modal-title">验证邮箱</h3>
+            <p class="sync-modal-desc" id="sync-verify-desc">已发送验证邮件到 <span id="sync-verify-email"></span>，请查收并点击链接完成验证。</p>
+            <div class="sync-modal-actions">
+              <button type="button" class="btn primary sync-btn-wide" id="sync-resend-verify-btn">重发验证邮件</button>
+            </div>
+            <div class="sync-modal-footer">
+              <button type="button" class="btn sync-link-btn" data-sync-verify-close>稍后验证</button>
+            </div>
           </div>
         </div>
       </section>
@@ -878,117 +983,357 @@
 
   /* ============== 同步 panel ============== */
   .sync-panel {
-    max-width: 420px;
+    max-width: 700px;
   }
-  .sync-indicator {
-    font-size: 13px;
+
+  /* 双栏布局 */
+  .sync-panel-layout {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 24px;
+    align-items: start;
+  }
+
+  @media (max-width: 640px) {
+    .sync-panel-layout {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* 状态卡片网格 */
+  .sync-status-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .sync-status-card {
+    background: var(--surface-translucent);
+    border: 1px solid var(--border);
+    padding: 20px;
+  }
+
+  .sync-section-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+  }
+
+  .sync-account-info {
+    min-height: 60px;
+  }
+
+  .sync-account-placeholder {
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  .sync-account-signed-in {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .sync-account-email {
+    font-size: 15px;
     font-weight: 500;
     color: var(--text);
   }
-  .sync-muted {
+
+  .sync-account-meta {
     font-size: 12px;
     color: var(--muted);
-    margin: 2px 0;
   }
-  .sync-user-line {
+
+  .sync-state-info {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .sync-state-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .sync-state-label {
     font-size: 13px;
-    color: var(--text);
+    color: var(--muted);
+  }
+
+  .sync-state-value {
+    font-size: 13px;
     font-weight: 500;
+    color: var(--text);
+    text-align: right;
   }
-  .sync-error {
-    font-size: 12px;
-    color: #ef4444;
-    margin-top: 6px;
+
+  .sync-state-value.synced { color: #22c55e; }
+  .sync-state-value.error,
+  .sync-state-value.offline { color: #ef4444; }
+  .sync-state-value.syncing { color: var(--accent); }
+
+  /* 操作区 */
+  .sync-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
   }
-  .sync-banner {
+
+  .sync-action-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .sync-btn-wide {
+    width: 100%;
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+
+  .sync-toggle {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 10px 12px;
-    border: 1px solid var(--border);
-    background: var(--surface-translucent);
+    cursor: pointer;
+    padding: 8px 0;
+  }
+
+  .sync-toggle input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .sync-toggle-slider {
+    position: relative;
+    width: 44px;
+    height: 26px;
+    background: var(--border);
+    border-radius: 13px;
+    transition: background var(--transition);
+    flex-shrink: 0;
+  }
+
+  .sync-toggle-slider::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 22px;
+    height: 22px;
+    background: white;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    transition: transform var(--transition);
+  }
+
+  .sync-toggle input:checked + .sync-toggle-slider {
+    background: var(--accent);
+  }
+
+  .sync-toggle input:checked + .sync-toggle-slider::after {
+    transform: translateX(18px);
+  }
+
+  .sync-toggle-label {
     font-size: 13px;
     color: var(--text);
-    margin-bottom: 8px;
   }
-  .sync-banner-icon {
-    flex-shrink: 0;
-    width: 18px;
-    height: 18px;
-    display: grid;
-    place-items: center;
+
+  .sync-doc-link {
     font-size: 13px;
-    line-height: 1;
+    color: var(--accent);
+    text-decoration: none;
   }
-  .sync-banner-text {
-    flex: 1;
-    line-height: 1.4;
+
+  .sync-doc-link:hover {
+    text-decoration: underline;
   }
-  .sync-banner[data-state="loading"] {
-    border-color: var(--border);
+
+  .sync-unconfigured {
+    text-align: center;
+    padding: 24px;
     color: var(--muted);
   }
-  .sync-banner[data-state="anon"] {
-    border-color: color-mix(in srgb, #f59e0b 40%, var(--border));
-    background: color-mix(in srgb, #f59e0b 10%, var(--surface-translucent));
+
+  /* 模态框 */
+  .sync-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
   }
-  .sync-banner[data-state="anon"] .sync-banner-icon::before {
-    content: "\26A0";
-    color: #f59e0b;
+
+  .sync-modal[hidden] {
+    display: none;
   }
-  .sync-banner[data-state="signed-in"] {
-    border-color: color-mix(in srgb, #22c55e 40%, var(--border));
-    background: color-mix(in srgb, #22c55e 10%, var(--surface-translucent));
+
+  .sync-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(2px);
   }
-  .sync-banner[data-state="signed-in"] .sync-banner-icon::before {
-    content: "\2713";
-    color: #22c55e;
-  }
-  .sync-banner[data-state="unconfigured"] {
-    border-color: color-mix(in srgb, #ef4444 40%, var(--border));
-    background: color-mix(in srgb, #ef4444 10%, var(--surface-translucent));
-  }
-  .sync-banner[data-state="unconfigured"] .sync-banner-icon::before {
-    content: "\2716";
-    color: #ef4444;
-  }
-  .sync-divider {
-    border: none;
-    border-top: 1px solid var(--border);
-    margin: 16px 0;
-  }
-  #sync-status-bar {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 8px;
-    flex-wrap: wrap;
-  }
-  .sync-input {
+
+  .sync-modal-panel {
+    position: relative;
     width: 100%;
+    max-width: 380px;
     background: var(--surface);
     border: 1px solid var(--border);
-    color: var(--text);
-    padding: 6px 10px;
-    font-size: 13px;
-    font-family: inherit;
-    margin-bottom: 8px;
-    box-sizing: border-box;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+    padding: 24px;
   }
-  .sync-input:focus {
-    outline: 1px solid var(--accent);
-  }
-  .sync-form-title {
-    font-size: 14px;
+
+  .sync-modal-title {
+    font-size: 18px;
     font-weight: 600;
     color: var(--text);
     margin-bottom: 4px;
   }
-  .sync-form-actions {
+
+  .sync-modal-desc {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 20px;
+  }
+
+  .sync-modal-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+    background: var(--surface-translucent);
+    border: 1px solid var(--border);
+    padding: 4px;
+  }
+
+  .sync-modal-tab {
+    flex: 1;
+    background: transparent;
+    border: none;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all var(--transition);
+  }
+
+  .sync-modal-tab:hover {
+    color: var(--text);
+  }
+
+  .sync-modal-tab.active {
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  }
+
+  .sync-modal-panels {
+    position: relative;
+  }
+
+  .sync-modal-panel-content {
+    display: none;
+    animation: fadeIn 150ms ease;
+  }
+
+  .sync-modal-panel-content[hidden] {
+    display: none;
+  }
+
+  .sync-modal-panel-content:not([hidden]) {
+    display: block;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .sync-field {
+    margin-bottom: 14px;
+  }
+
+  .sync-field input {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    box-sizing: border-box;
+  }
+
+  .sync-field input:focus {
+    outline: 1px solid var(--accent);
+  }
+
+  .sync-link-btn {
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: 13px;
+    cursor: pointer;
+    padding: 4px 0;
+    margin-top: -8px;
+    margin-bottom: 8px;
+    text-align: right;
+  }
+
+  .sync-link-btn:hover {
+    text-decoration: underline;
+  }
+
+  .sync-error {
+    font-size: 12px;
+    color: #ef4444;
+    margin-top: 4px;
+    min-height: 16px;
+  }
+
+  .sync-success {
+    font-size: 12px;
+    color: #22c55e;
+    margin-top: 4px;
+    min-height: 16px;
+  }
+
+  .sync-modal-actions {
     display: flex;
     gap: 8px;
-    flex-wrap: wrap;
-    margin-top: 4px;
+    margin-top: 8px;
+  }
+
+  .sync-modal-actions .btn {
+    flex: 1;
+  }
+
+  .sync-modal-footer {
+    margin-top: 16px;
+    text-align: center;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 
   .wf-field-label {
@@ -1070,7 +1415,8 @@
   } from "../lib/store";
   import { applyTheme, THEME_OPTIONS } from "../lib/themes";
   import { escapeHtml, escapeAttr, showToast, saveFocus, restoreFocus } from "../lib/helpers";
-  import { getCurrentUser, isAnonymous, onAuthChange, signInWithEmail, signUpWithEmail, linkEmail, signOut } from "../lib/auth";
+  import { getCurrentUser, onAuthChange, signInWithEmail, signUpWithEmail, linkEmail, signOut, resetPassword, resendVerification, isEmailVerified } from "../lib/auth";
+import { initRemoteSync } from "../lib/store";
   import { isConfigured } from "../lib/supabase";
   import { onSyncStatus, getLastSynced, doSync } from "../lib/sync";
 
@@ -1889,220 +2235,265 @@
   document.getElementById("wf-popover-save")!.addEventListener("click", saveWfPopover);
   wfPopoverName.addEventListener("keydown", (e) => { if (e.key === "Enter") saveWfPopover(); });
 
-  // ---------- 同步 panel ----------
-  let syncEmail = "";
-  let syncing = true;
-  let lastStatus = "idle";
+// ---------- 同步 panel ----------
+  let lastStatus: "idle" | "syncing" | "synced" | "error" | "offline" = "idle";
   let unsubscribeSyncStatus: (() => void) | null = null;
   let unsubscribeAuth: (() => void) | null = null;
+  let syncAutoEnabled = true;
 
   function renderSyncPanel(): void {
+    const stateInfo = document.getElementById("sync-state-info")!;
+    const accountInfo = document.getElementById("sync-account-info")!;
     const indicator = document.getElementById("sync-indicator-text")!;
     const lastTime = document.getElementById("sync-last-time")!;
-    const banner = document.getElementById("sync-account-banner")!;
-    const bannerText = banner.querySelector(".sync-banner-text")!;
+    const storageInfo = document.getElementById("sync-storage-info")!;
     const forceBtn = document.getElementById("sync-force-btn")! as HTMLButtonElement;
-    const userInfo = document.getElementById("sync-user-info")!;
-    const userEmail = document.getElementById("sync-user-email")!;
-    const userMeta = document.getElementById("sync-user-meta")!;
-    const authForm = document.getElementById("sync-auth-form")!;
-    const authTitle = document.getElementById("sync-auth-title")!;
-    const authDesc = document.getElementById("sync-auth-desc")!;
+    const autoToggle = document.getElementById("sync-auto-toggle") as HTMLInputElement;
+    const logoutBtn = document.getElementById("sync-logout-btn")! as HTMLButtonElement;
     const loginBtn = document.getElementById("sync-login-btn")! as HTMLButtonElement;
     const signupBtn = document.getElementById("sync-signup-btn")! as HTMLButtonElement;
-    const linkBtn = document.getElementById("sync-link-btn")! as HTMLButtonElement;
-    const logoutBtn = document.getElementById("sync-logout-btn")! as HTMLButtonElement;
-    const errorMsg = document.getElementById("sync-error-msg")!;
-    const emailInput = document.getElementById("sync-email") as HTMLInputElement;
-    const pwInput = document.getElementById("sync-password") as HTMLInputElement;
-    const emailWrap = emailInput.classList.contains("sync-input") ? emailInput : emailInput;
-    const pwWrap = pwInput.classList.contains("sync-input") ? pwInput : pwInput;
+    const unauthActions = document.getElementById("sync-unauth-actions")!;
+    const authActions = document.getElementById("sync-auth-actions")!;
+    const unconfiguredDiv = document.getElementById("sync-unconfigured")!;
+
+    // 模态框元素
+    const authModal = document.getElementById("sync-auth-modal")!;
+    const authModalTitle = document.getElementById("sync-modal-title")!;
+    const authModalDesc = document.getElementById("sync-modal-desc")!;
+    const authTabs = authModal.querySelectorAll<HTMLButtonElement>(".sync-modal-tab");
+    const loginPanel = authModal.querySelector<HTMLDivElement>('[data-sync-panel="login"]')!;
+    const signupPanel = authModal.querySelector<HTMLDivElement>('[data-sync-panel="signup"]')!;
+    const modalLoginBtn = document.getElementById("sync-modal-login-btn")! as HTMLButtonElement;
+    const modalSignupBtn = document.getElementById("sync-modal-signup-btn")! as HTMLButtonElement;
+    const modalLoginEmail = document.getElementById("sync-modal-email") as HTMLInputElement;
+    const modalLoginPw = document.getElementById("sync-modal-password") as HTMLInputElement;
+    const modalSignupEmail = document.getElementById("sync-modal-signup-email") as HTMLInputElement;
+    const modalSignupPw = document.getElementById("sync-modal-signup-password") as HTMLInputElement;
+    const modalLoginError = document.getElementById("sync-modal-error")!;
+    const modalSignupError = document.getElementById("sync-modal-signup-error")!;
+    const forgotPasswordBtn = document.getElementById("sync-forgot-password")!;
+    const resetModal = document.getElementById("sync-reset-modal")!;
+    const resetEmail = document.getElementById("sync-reset-email") as HTMLInputElement;
+    const resetSendBtn = document.getElementById("sync-reset-send-btn")! as HTMLButtonElement;
+    const resetError = document.getElementById("sync-reset-error")!;
+    const resetSuccess = document.getElementById("sync-reset-success")!;
+    const verifyModal = document.getElementById("sync-verify-modal")!;
+    const verifyEmail = document.getElementById("sync-verify-email")!;
+    const resendVerifyBtn = document.getElementById("sync-resend-verify-btn")! as HTMLButtonElement;
+    let activeAuthTab: "login" | "signup" = "login";
 
     unsubscribeSyncStatus?.();
     unsubscribeAuth?.();
 
-    syncEmail = emailInput.value || syncEmail;
-
-    function setBanner(state: "loading" | "anon" | "signed-in" | "unconfigured", text: string): void {
-      banner.dataset.state = state;
-      bannerText.textContent = text;
-      banner.hidden = false;
-    }
-
-    function showAuthForm(visible: boolean, title?: string, desc?: string): void {
-      authForm.hidden = !visible;
-      if (title) authTitle.textContent = title;
-      if (desc !== undefined) authDesc.textContent = desc;
-    }
-
-    async function refreshUser() {
+    function updateUI() {
       const user = getCurrentUser();
+      const configured = isConfigured();
 
-      if (!isConfigured()) {
-        indicator.textContent = "未配置 Supabase（参见 .env）";
-        indicator.style.color = "var(--muted)";
-        setBanner("unconfigured", "未配置同步服务。在 Vercel 项目设置 PUBLIC_SUPABASE_URL 与 PUBLIC_SUPABASE_ANON_KEY 后重新部署即可启用。");
-        forceBtn.hidden = true;
-        userInfo.hidden = true;
-        showAuthForm(false);
+      // 重置显示
+      unauthActions.hidden = true;
+      authActions.hidden = true;
+      unconfiguredDiv.hidden = true;
+      stateInfo.hidden = false;
+      accountInfo.hidden = false;
+
+      if (!configured) {
+        // 未配置 Supabase
+        unconfiguredDiv.hidden = false;
+        stateInfo.hidden = true;
+        accountInfo.innerHTML = '<div class="sync-account-placeholder">同步未配置</div>';
+        indicator.textContent = "未配置";
+        indicator.className = "sync-state-value";
+        lastTime.textContent = "—";
+        storageInfo.textContent = "—";
         return;
       }
 
       if (!user) {
+        // 未登录
+        unauthActions.hidden = false;
+        accountInfo.innerHTML = '<div class="sync-account-placeholder">未登录</div>';
         indicator.textContent = "未登录";
-        indicator.style.color = "var(--muted)";
-        setBanner("loading", "正在连接 Supabase...");
-        forceBtn.hidden = true;
-        userInfo.hidden = true;
-        showAuthForm(true, "登录以跨设备同步", "设置账号后，你的书签和设置将在所有设备上自动同步。");
-        loginBtn.hidden = false;
-        signupBtn.hidden = false;
-        linkBtn.hidden = true;
-        logoutBtn.hidden = true;
-        emailWrap.hidden = false;
-        pwWrap.hidden = false;
-        errorMsg.hidden = true;
+        indicator.className = "sync-state-value";
+        lastTime.textContent = "—";
+        storageInfo.textContent = "本地存储中";
         return;
       }
 
-      if (user.is_anonymous) {
-        indicator.textContent = "本地账号";
-        indicator.style.color = "#f59e0b";
-        setBanner("anon", "当前为设备本地账号（未跨设备同步）。登录或绑定邮箱后，可在多设备同步书签和设置。");
-        userInfo.hidden = false;
-        userEmail.textContent = "未绑定邮箱 · 本地账号";
-        userMeta.textContent = "";
-        forceBtn.hidden = false;
-        showAuthForm(true, "绑定邮箱以开启跨设备同步", "输入邮箱和密码后，当前设备的数据会关联到该账号，其他设备登录同一账号即可看到。");
-        loginBtn.hidden = true;
-        signupBtn.hidden = true;
-        linkBtn.hidden = false;
-        logoutBtn.hidden = false;
-        emailWrap.hidden = false;
-        pwWrap.hidden = false;
-        errorMsg.hidden = true;
-        return;
-      }
+      // 已登录 - 初始化远程同步（仅首次）
+      initRemoteSync();
+      authActions.hidden = false;
+      const verified = isEmailVerified();
+      const email = user.email ?? "—";
+      accountInfo.innerHTML = `
+        <div class="sync-account-signed-in">
+          <span class="sync-account-email">${escapeHtml(email)}</span>
+          <span class="sync-account-meta">${verified ? "✓ 邮箱已验证" : "⚠ 邮箱未验证"}</span>
+        </div>
+      `;
+      indicator.textContent = "已连接";
+      indicator.className = "sync-state-value";
 
-      indicator.textContent = "已登录";
-      indicator.style.color = "#22c55e";
-      setBanner("signed-in", `已绑定邮箱：${user.email ?? ""}。所有设备登录此账号后自动同步。`);
-      userInfo.hidden = false;
-      userEmail.textContent = user.email ?? "已登录";
-      userMeta.textContent = "数据已关联到你的账号，跨设备自动同步";
-      forceBtn.hidden = false;
-      showAuthForm(false);
-      loginBtn.hidden = true;
-      signupBtn.hidden = true;
-      linkBtn.hidden = true;
-      logoutBtn.hidden = false;
-      errorMsg.hidden = true;
+      // 同步状态由 onSyncStatus 更新
+      const last = getLastSynced();
+      lastTime.textContent = last ? new Date(last).toLocaleString() : "从未同步";
+
+      // 存储信息
+      const state = getState();
+      const localSize = JSON.stringify(state).length;
+      storageInfo.textContent = `本地: ${(localSize / 1024).toFixed(1)}KB · 远程: 同步后更新`;
     }
 
-    refreshUser();
+    // 打开登录/注册模态框
+    function openAuthModal(tab: "login" | "signup" = "login") {
+      activeAuthTab = tab;
+      authTabs.forEach((t) => {
+        const isActive = t.dataset.syncTab === tab;
+        t.classList.toggle("active", isActive);
+        t.setAttribute("aria-selected", String(isActive));
+      });
+      loginPanel.hidden = tab !== "login";
+      signupPanel.hidden = tab !== "signup";
+      modalLoginError.hidden = true;
+      modalSignupError.hidden = true;
+      modalLoginEmail.value = "";
+      modalLoginPw.value = "";
+      modalSignupEmail.value = "";
+      modalSignupPw.value = "";
+      authModal.hidden = false;
+      saveFocus();
+      setTimeout(() => {
+        (tab === "login" ? modalLoginEmail : modalSignupEmail).focus();
+      }, 0);
+    }
 
-    unsubscribeAuth = onAuthChange(() => refreshUser());
+    function closeAuthModal() {
+      authModal.hidden = true;
+      restoreFocus();
+    }
 
-    unsubscribeSyncStatus = onSyncStatus((status) => {
-      lastStatus = status;
-      const labels: Record<string, string> = {
-        idle: "就绪",
-        syncing: "同步中...",
-        synced: "已同步",
-        error: "同步失败",
-        offline: "离线",
-      };
-      indicator.textContent = labels[status] ?? status;
-      indicator.style.color = status === "synced"
-        ? "#22c55e"
-        : status === "error" || status === "offline"
-          ? "#ef4444"
-          : "var(--text)";
-      const last = getLastSynced();
-      lastTime.textContent = last ? `上次同步：${new Date(last).toLocaleString()}` : "";
-      forceBtn.hidden = false;
-      syncing = false;
+    // 切换标签
+    authTabs.forEach((tab) => {
+      tab.addEventListener("click", () => openAuthModal(tab.dataset.syncTab as "login" | "signup"));
     });
 
-    forceBtn.onclick = () => {
-      indicator.textContent = "同步中...";
-      doSync();
-    };
+    // 关闭模态框
+    authModal.querySelectorAll<HTMLElement>("[data-sync-modal-close]").forEach((el) => {
+      el.addEventListener("click", closeAuthModal);
+    });
 
-    loginBtn.onclick = async () => {
-      const email = emailInput.value.trim();
-      const pw = pwInput.value;
-      if (!email || !pw) { errorMsg.textContent = "请输入邮箱和密码"; errorMsg.style.color = "#ef4444"; errorMsg.hidden = false; return; }
-      errorMsg.hidden = true;
-      loginBtn.disabled = true;
+    // 登录提交
+    modalLoginBtn.onclick = async () => {
+      const email = modalLoginEmail.value.trim();
+      const pw = modalLoginPw.value;
+      if (!email || !pw) { modalLoginError.textContent = "请输入邮箱和密码"; modalLoginError.hidden = false; return; }
+      modalLoginError.hidden = true;
+      modalLoginBtn.disabled = true;
       try {
         const user = await signInWithEmail(email, pw);
-        emailInput.value = "";
-        pwInput.value = "";
         showToast(`已登录：${user?.email ?? email}`, "info");
-        // 显式刷新（onAuthChange 应已触发，但保险起见再调用一次）
+        closeAuthModal();
         await refreshUser();
-        // 登录成功后立即拉一次远端
         doSync().catch(() => {});
       } catch (e: any) {
         const msg = e?.message ?? "登录失败";
-        errorMsg.textContent = msg;
-        errorMsg.style.color = "#ef4444";
-        errorMsg.hidden = false;
+        modalLoginError.textContent = msg;
+        modalLoginError.hidden = false;
         showToast(`登录失败：${msg}`, "error");
       }
-      loginBtn.disabled = false;
+      modalLoginBtn.disabled = false;
     };
 
-    signupBtn.onclick = async () => {
-      const email = emailInput.value.trim();
-      const pw = pwInput.value;
-      if (!email || !pw) { errorMsg.textContent = "请输入邮箱和密码"; errorMsg.style.color = "#ef4444"; errorMsg.hidden = false; return; }
-      if (pw.length < 6) { errorMsg.textContent = "密码至少 6 位"; errorMsg.style.color = "#ef4444"; errorMsg.hidden = false; return; }
-      errorMsg.hidden = true;
-      signupBtn.disabled = true;
+    // 注册提交
+    modalSignupBtn.onclick = async () => {
+      const email = modalSignupEmail.value.trim();
+      const pw = modalSignupPw.value;
+      if (!email || !pw) { modalSignupError.textContent = "请输入邮箱和密码"; modalSignupError.hidden = false; return; }
+      if (pw.length < 6) { modalSignupError.textContent = "密码至少 6 位"; modalSignupError.hidden = false; return; }
+      modalSignupError.hidden = true;
+      modalSignupBtn.disabled = true;
       try {
         await signUpWithEmail(email, pw);
-        emailInput.value = "";
-        pwInput.value = "";
         showToast(`已注册：${email}（如开启邮箱验证请前往邮箱确认）`, "info");
+        closeAuthModal();
+        // 检查是否需要邮箱验证
+        const user = getCurrentUser();
+        if (user && !isEmailVerified()) {
+          verifyEmail.textContent = email;
+          verifyModal.hidden = false;
+          saveFocus();
+        }
         await refreshUser();
         doSync().catch(() => {});
       } catch (e: any) {
         const msg = e?.message ?? "注册失败";
-        errorMsg.textContent = msg;
-        errorMsg.style.color = "#ef4444";
-        errorMsg.hidden = false;
+        modalSignupError.textContent = msg;
+        modalSignupError.hidden = false;
         showToast(`注册失败：${msg}`, "error");
       }
-      signupBtn.disabled = false;
+      modalSignupBtn.disabled = false;
+    }
+
+    // 忘记密码
+    forgotPasswordBtn.onclick = () => {
+      closeAuthModal();
+      resetEmail.value = "";
+      resetError.hidden = true;
+      resetSuccess.hidden = true;
+      resetModal.hidden = false;
+      saveFocus();
+      setTimeout(() => resetEmail.focus(), 0);
     };
 
-    linkBtn.onclick = async () => {
-      const email = emailInput.value.trim();
-      const pw = pwInput.value;
-      if (!email || !pw) { errorMsg.textContent = "请输入邮箱和密码"; errorMsg.style.color = "#ef4444"; errorMsg.hidden = false; return; }
-      if (pw.length < 6) { errorMsg.textContent = "密码至少 6 位"; errorMsg.style.color = "#ef4444"; errorMsg.hidden = false; return; }
-      errorMsg.hidden = true;
-      linkBtn.disabled = true;
+    // 重置密码模态框
+    resetModal.querySelectorAll<HTMLElement>("[data-sync-reset-close]").forEach((el) => {
+      el.addEventListener("click", () => { resetModal.hidden = true; restoreFocus(); });
+    });
+
+    resetSendBtn.onclick = async () => {
+      const email = resetEmail.value.trim();
+      if (!email) { resetError.textContent = "请输入邮箱"; resetError.hidden = false; return; }
+      resetError.hidden = true;
+      resetSuccess.hidden = true;
+      resetSendBtn.disabled = true;
       try {
-        await linkEmail(email, pw);
-        emailInput.value = "";
-        pwInput.value = "";
-        showToast(`已绑定邮箱：${email}，跨设备同步已开启`, "info");
-        await refreshUser();
-        // 绑定后立即推送一次本地数据到远端
-        doSync().catch(() => {});
+        await resetPassword(email);
+        resetSuccess.textContent = `重置邮件已发送到 ${email}，请查收`;
+        resetSuccess.hidden = false;
       } catch (e: any) {
-        const msg = e?.message ?? "绑定失败";
-        errorMsg.textContent = msg;
-        errorMsg.style.color = "#ef4444";
-        errorMsg.hidden = false;
-        showToast(`绑定失败：${msg}`, "error");
+        resetError.textContent = e?.message ?? "发送失败";
+        resetError.hidden = false;
       }
-      linkBtn.disabled = false;
+      resetSendBtn.disabled = false;
     };
 
+    // 邮箱验证模态框
+    verifyModal.querySelectorAll<HTMLElement>("[data-sync-verify-close]").forEach((el) => {
+      el.addEventListener("click", () => { verifyModal.hidden = true; restoreFocus(); });
+    });
+
+    resendVerifyBtn.onclick = async () => {
+      resendVerifyBtn.disabled = true;
+      try {
+        await resendVerification();
+        showToast("验证邮件已重发", "info");
+      } catch (e: any) {
+        showToast(`重发失败：${e?.message ?? ""}`, "error");
+      }
+      resendVerifyBtn.disabled = false;
+    };
+
+    // 回车键提交
+    modalLoginEmail.onkeydown = (e) => { if (e.key === "Enter") modalLoginPw.focus(); };
+    modalLoginPw.onkeydown = (e) => { if (e.key === "Enter") modalLoginBtn.click(); };
+    modalSignupEmail.onkeydown = (e) => { if (e.key === "Enter") modalSignupPw.focus(); };
+    modalSignupPw.onkeydown = (e) => { if (e.key === "Enter") modalSignupBtn.click(); };
+    resetEmail.onkeydown = (e) => { if (e.key === "Enter") resetSendBtn.click(); };
+
+    // 登录/注册按钮
+    loginBtn.onclick = () => openAuthModal("login");
+    signupBtn.onclick = () => openAuthModal("signup");
+
+    // 退出登录
     logoutBtn.onclick = async () => {
       try {
         await signOut();
@@ -2113,12 +2504,48 @@
       }
     };
 
-    document.getElementById("sync-email")!.onkeydown = (e) => {
-      if (e.key === "Enter") document.getElementById("sync-password")!.focus();
+    // 立即同步
+    forceBtn.onclick = () => {
+      indicator.textContent = "同步中...";
+      indicator.className = "sync-state-value syncing";
+      doSync();
     };
-    document.getElementById("sync-password")!.onkeydown = (e) => {
-      if (e.key === "Enter") (document.getElementById("sync-login-btn") as HTMLButtonElement)?.click();
+
+    // 自动同步开关
+    autoToggle.checked = syncAutoEnabled;
+    autoToggle.onchange = () => {
+      syncAutoEnabled = autoToggle.checked;
     };
+
+    // 监听 auth 变化
+    async function refreshUser() {
+      updateUI();
+    }
+
+    unsubscribeAuth = onAuthChange(() => refreshUser());
+
+    // 监听同步状态
+    unsubscribeSyncStatus = onSyncStatus((status) => {
+      lastStatus = status;
+      const labels: Record<string, string> = {
+        idle: "就绪",
+        syncing: "同步中...",
+        synced: "已同步",
+        error: "同步失败",
+        offline: "离线",
+      };
+      indicator.textContent = labels[status] ?? status;
+      indicator.className = "sync-state-value " + status;
+      const last = getLastSynced();
+      lastTime.textContent = last ? new Date(last).toLocaleString() : "从未同步";
+      // 存储信息更新
+      const state = getState();
+      const localSize = JSON.stringify(state).length;
+      storageInfo.textContent = `本地: ${(localSize / 1024).toFixed(1)}KB · 远程: 同步后更新`;
+    });
+
+    // 初始渲染
+    updateUI();
   }
 
   window.addEventListener("manage:close", () => {
