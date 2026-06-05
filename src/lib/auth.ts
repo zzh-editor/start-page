@@ -24,9 +24,9 @@ export function getCurrentUser(): User | null {
 async function restoreSession(): Promise<User | null> {
   const supabase = getClient();
   if (!supabase) return null;
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data?.user) return null;
-  return data.user;
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user) return null;
+  return session.user;
 }
 
 export async function initAuth(): Promise<User | null> {

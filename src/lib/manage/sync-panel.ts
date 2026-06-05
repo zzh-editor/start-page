@@ -1,4 +1,4 @@
-import { getState, initRemoteSync } from "../../lib/store";
+import { getState } from "../../lib/store";
 import { escapeHtml } from "../../lib/helpers";
 import { getCurrentUser, onAuthChange, signInWithEmail, signUpWithEmail, signOut, resetPassword } from "../../lib/auth";
 import { isConfigured } from "../../lib/supabase";
@@ -74,7 +74,6 @@ export function initSyncPanel(): void {
       return;
     }
 
-    initRemoteSync();
     authActions.hidden = false;
     const email = user.email ?? "—";
     accountInfo.innerHTML = `

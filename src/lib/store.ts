@@ -648,8 +648,9 @@ export function importFromHtml(
   }
 }
 
-// 暴露到 window，便于跨组件访问（避免循环 import）
+// 启动时主动恢复认证状态（不再依赖同步面板触发）
 if (typeof window !== "undefined") {
   (window as unknown as { __startpageStore: () => Store }).__startpageStore =
     getState;
+  initRemoteSync();
 }
