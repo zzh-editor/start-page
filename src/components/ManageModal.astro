@@ -2578,5 +2578,12 @@ import { initRemoteSync } from "../lib/store";
   // 初始渲染主题卡片
   renderTheme(getState());
 
+  // @ts-ignore - 测试用全局 API
+  if (typeof window !== "undefined") {
+    (window as any).__testStore = { getState, addCategory, renameCategory, deleteCategory, addBookmark, deleteBookmarks, addBookmarksBatch, setThemeStyle, setThemeMode, subscribe };
+    (window as any).__testAuth = { getCurrentUser, signInWithEmail, signUpWithEmail, signOut, resetPassword, isEmailVerified };
+    (window as any).__testSync = { doSync, onSyncStatus };
+  }
+
 
 </script>
