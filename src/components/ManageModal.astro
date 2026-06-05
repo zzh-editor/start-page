@@ -86,14 +86,34 @@
           <div class="bm-form-actions">
             <button type="button" class="btn" id="bm-move-cancel">取消</button>
             <button type="button" class="btn primary" id="bm-move-save">确认</button>
-            <button type="button" class="btn danger" id="bm-move-delete">删除</button>
+            <button type="button" class="btn" id="bm-export-html">导出为 HTML</button>
+            <button type="button" class="btn" id="bm-move-import">从文件导入</button>
+            <button type="button" class="btn danger" id="bm-move-delete" style="margin-left:auto">删除</button>
           </div>
         </div>
 
         <div class="bm-grid" id="bm-grid"></div>
-      </section>
 
-      <!-- ============== 分组 ============== -->
+        <!-- 导入预览弹窗 -->
+        <div id="import-popover" class="bm-popover" role="dialog" aria-modal="true" aria-label="导入书签" hidden>
+          <div class="bm-popover-backdrop" data-import-close></div>
+          <div class="bm-popover-panel" data-squircle data-squircle-radius="16" style="max-width:500px">
+            <h3 style="margin:0 0 12px;font-size:14px;font-weight:600">导入书签</h3>
+            <div id="import-preview-info" style="margin-bottom:8px"></div>
+            <div id="import-preview-list" style="max-height:200px;overflow-y:auto;margin-bottom:8px;font-size:12px"></div>
+            <div class="bm-form-actions" style="justify-content:space-between">
+              <div>
+                <label style="font-size:12px"><input type="radio" name="import-mode" value="merge" checked /> 合并</label>
+                <label style="font-size:12px;margin-left:8px"><input type="radio" name="import-mode" value="replace" /> 替换</label>
+              </div>
+              <div>
+                <button type="button" class="btn" data-import-close>取消</button>
+                <button type="button" class="btn primary" id="import-confirm-btn">确认导入</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
       <section class="subpanel" data-subpanel="categories" hidden>
         <div class="cat-toolbar">
           <button type="button" class="btn primary" id="cat-add">+ 新建分组</button>
@@ -197,7 +217,7 @@
             </div>
             <div class="sync-action-group" id="sync-unconfigured" hidden>
               <p class="sync-muted">同步功能需配置 Supabase</p>
-              <a href="https://github.com/your-repo/zzhstart-page#supabase-%E9%85%8D%E7%BD%AE" target="_blank" rel="noopener" class="sync-doc-link">查看配置文档 →</a>
+              <a href="https://github.com/iszhjane/start-page/blob/main/SUPABASE.md" target="_blank" rel="noopener" class="sync-doc-link">查看配置文档 →</a>
             </div>
           </div>
         </div>
@@ -798,6 +818,61 @@
     flex-shrink: 0;
   }
 
+  .bm-grid-item .bm-grid-actions {
+    flex-shrink: 0;
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity var(--transition);
+  }
+
+  .bm-grid-item:hover .bm-grid-actions {
+    opacity: 1;
+  }
+
+  .bm-grid-item .bm-grid-actions .btn.sm {
+    font-size: 11px;
+    padding: 2px 6px;
+    min-width: unset;
+    line-height: 1.4;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+  }
+
+  .bm-grid-item .bm-grid-actions .btn.sm:hover {
+    color: var(--text);
+    background: var(--hover);
+  }
+
+  .bm-grid-item .bm-grid-actions .btn.sm.danger:hover {
+    color: #ef4444;
+  }
+
+  .bm-grid-checkbox-wrap {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .bm-io-section {
+    margin-top: 16px;
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+  }
+
+  .bm-io-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .bm-io-row .btn {
+    font-size: 12px;
+    padding: 6px 12px;
+  }
+
   /* ============== 分组 panel ============== */
   .cat-toolbar {
     display: flex;
@@ -1386,49 +1461,23 @@
 </style>
 
 <script>
-  import {
-    getState,
-    subscribe,
-    addBookmark,
-    addBookmarksBatch,
-    parseBatchInput,
-    deleteBookmarks,
-    updateBookmarksCategory,
-    addCategory,
-    renameCategory,
-    deleteCategory,
-    reorderCategory,
-    normalizeUrl,
-    addWorkflow,
-    deleteWorkflow,
-    setThemeMode,
-    setThemeStyle,
-    setBookmarkSort,
-    setSearchEngine,
-    setCustomSearchEngine,
-    SEARCH_ENGINES,
-    type Store,
-    type Bookmark,
-    type Category,
-    type BookmarkSort,
-    type SearchEngineId,
-  } from "../lib/store";
-  import { applyTheme, THEME_OPTIONS } from "../lib/themes";
-  import { escapeHtml, escapeAttr, showToast, saveFocus, restoreFocus } from "../lib/helpers";
-  import { getCurrentUser, onAuthChange, signInWithEmail, signUpWithEmail, linkEmail, signOut, resetPassword, resendVerification, isEmailVerified } from "../lib/auth";
-import { initRemoteSync } from "../lib/store";
-  import { isConfigured } from "../lib/supabase";
-  import { onSyncStatus, getLastSynced, doSync } from "../lib/sync";
+  import { getState, subscribe } from "../lib/store";
+  import { applyTheme } from "../lib/themes";
+  import { showToast, saveFocus, restoreFocus } from "../lib/helpers";
 
+  import { setSharedFns, panelState, type SubKey } from "../lib/manage/shared";
+  import { renderTheme } from "../lib/manage/theme-panel";
+  import { renderBmGrid, updateSelectionInfo, renderSortMenu, initBookmarksPanel } from "../lib/manage/bookmarks-panel";
+  import { renderCatList, initCategoriesPanel } from "../lib/manage/categories-panel";
+  import { renderSearch, initSearchPanel } from "../lib/manage/search-panel";
+  import { renderWorkflows, initWorkflowsPanel } from "../lib/manage/workflows-panel";
+  import { initSyncPanel } from "../lib/manage/sync-panel";
+
+  // ---------- Modal open/close ----------
   const modal = document.getElementById("manage-modal")!;
   const subtabsEl = document.getElementById("subtabs")!;
-
-  type SubKey = "theme" | "bookmarks" | "categories" | "workflows" | "search" | "shortcuts" | "sync";
   let activeSub: SubKey = "theme";
-  let selectedIds = new Set<string>();
-  let editingCatId: string | null = null;
 
-  // 打开 / 关闭
   function openModal(): void {
     saveFocus();
     modal.hidden = false;
@@ -1436,11 +1485,16 @@ import { initRemoteSync } from "../lib/store";
     document.body.style.overflow = "hidden";
   }
 
+  let closeCleanup: (() => void) | null = null;
+
   function closeModal(): void {
     modal.hidden = true;
     document.body.style.overflow = "";
-    selectedIds.clear();
-    editingCatId = null;
+    panelState.selectedIds.clear();
+    panelState.editingCatId = null;
+    panelState.editingBmId = null;
+    panelState.editingWfId = null;
+    closeCleanup?.();
     window.dispatchEvent(new CustomEvent("manage:close"));
     restoreFocus();
   }
@@ -1456,7 +1510,7 @@ import { initRemoteSync } from "../lib/store";
     }
   });
 
-  // ---------- 确认弹层 ----------
+  // ---------- Confirm dialog ----------
   const mmConfirm = document.getElementById("mm-confirm")!;
   document.body.appendChild(mmConfirm);
   const mmConfirmTitle = document.getElementById("mm-confirm-title")!;
@@ -1469,9 +1523,7 @@ import { initRemoteSync } from "../lib/store";
     mmConfirmText.textContent = message;
     mmConfirmCallback = onConfirm;
     saveFocus();
-    requestAnimationFrame(() => {
-      mmConfirm.hidden = false;
-    });
+    requestAnimationFrame(() => { mmConfirm.hidden = false; });
   }
 
   function closeModalConfirm(): void {
@@ -1491,7 +1543,16 @@ import { initRemoteSync } from "../lib/store";
     if (e.key === "Escape" && !mmConfirm.hidden) closeModalConfirm();
   });
 
-  // ---------- Sub-tab 切换 ----------
+  // ---------- Shared functions injection ----------
+  setSharedFns({
+    confirm: openModalConfirm,
+    toast: showToast,
+    saveFocus,
+    restoreFocus,
+    switchSub: (sub) => switchSub(sub),
+  });
+
+  // ---------- Sub-tab switching ----------
   subtabsEl.querySelectorAll<HTMLButtonElement>(".subtab").forEach((btn) => {
     btn.addEventListener("click", () => {
       const sub = btn.dataset.sub as SubKey;
@@ -1505,12 +1566,10 @@ import { initRemoteSync } from "../lib/store";
     if (idx === -1) return;
     if (e.key === "ArrowRight") {
       e.preventDefault();
-      const next = (idx + 1) % btns.length;
-      btns[next].click();
+      btns[(idx + 1) % btns.length].click();
     } else if (e.key === "ArrowLeft") {
       e.preventDefault();
-      const prev = (idx - 1 + btns.length) % btns.length;
-      btns[prev].click();
+      btns[(idx - 1 + btns.length) % btns.length].click();
     }
   });
 
@@ -1525,1035 +1584,28 @@ import { initRemoteSync } from "../lib/store";
     if (sub === "theme") renderTheme(getState());
     if (sub === "bookmarks") {
       renderBmGrid(getState());
-      selectedIds.clear();
+      panelState.selectedIds.clear();
       updateSelectionInfo();
       renderSortMenu(getState());
     }
     if (sub === "categories") {
-      editingCatId = null;
+      panelState.editingCatId = null;
       renderCatList(getState());
     }
     if (sub === "search") renderSearch(getState());
     if (sub === "workflows") renderWorkflows(getState());
-    if (sub === "sync") renderSyncPanel();
+    if (sub === "sync") {
+      closeCleanup = initSyncPanel();
+    }
   }
 
-  // ---------- 主题 panel ----------
-  function renderTheme(state: Store): void {
-    const cardsEl = document.getElementById("theme-cards")!;
-    cardsEl.innerHTML = THEME_OPTIONS.map(
-      (opt) => `
-      <button type="button" class="theme-card ${opt.id === state.themeStyle ? "active" : ""}" data-theme="${opt.id}">
-        <div class="theme-card-preview">${opt.label}</div>
-        <div class="theme-card-name">${opt.label}</div>
-        <div class="theme-card-desc">${opt.description}</div>
-      </button>
-    `,
-    ).join("");
-
-    cardsEl.querySelectorAll<HTMLButtonElement>(".theme-card").forEach((card) => {
-      card.addEventListener("click", () => {
-        const id = card.dataset.theme as "default" | "pixel";
-        setThemeStyle(id);
-        applyTheme(getState().themeMode, id);
-      });
-    });
-
-    const modeEl = document.getElementById("theme-mode")!;
-    modeEl.querySelectorAll<HTMLButtonElement>("button[data-mode]").forEach((b) => {
-      const isActive = b.dataset.mode === state.themeMode;
-      b.classList.toggle("active", isActive);
-      b.setAttribute("aria-pressed", String(isActive));
-      b.onclick = () => {
-        const mode = b.dataset.mode as "light" | "dark";
-        setThemeMode(mode);
-        applyTheme(mode, getState().themeStyle);
-      };
-    });
-  }
-
-  // ---------- 书签 panel ----------
-  const bmGrid = document.getElementById("bm-grid")!;
-  const bmSelectionInfo = document.getElementById("bm-selection-info")!;
-  const bmSelectAll = document.getElementById("bm-select-all")!;
-  const bmMoveDelete = document.getElementById("bm-move-delete")!;
-
-  function renderBmGrid(state: Store): void {
-    bmGrid.innerHTML = state.bookmarks
-      .map((b) => {
-        const cat = state.categories.find((c) => c.id === b.categoryId);
-        return `
-        <label class="bm-grid-item ${selectedIds.has(b.id) ? "selected" : ""}" data-id="${b.id}">
-          <input type="checkbox" ${selectedIds.has(b.id) ? "checked" : ""} />
-          <span class="bm-name" title="${escapeAttr(b.href)}">${escapeHtml(b.title)}</span>
-          <span class="bm-cat">${escapeHtml(cat?.name ?? "未分类")}</span>
-        </label>
-      `;
-      })
-      .join("");
-
-    bmGrid.querySelectorAll<HTMLLabelElement>(".bm-grid-item").forEach((label) => {
-      const id = label.dataset.id!;
-      const cb = label.querySelector("input")!;
-      const toggle = () => {
-        if (selectedIds.has(id)) selectedIds.delete(id);
-        else selectedIds.add(id);
-        label.classList.toggle("selected", selectedIds.has(id));
-        cb.checked = selectedIds.has(id);
-        updateSelectionInfo();
-      };
-      cb.addEventListener("change", toggle);
-    });
-  }
-
-  function updateSelectionInfo(): void {
-    const n = selectedIds.size;
-    bmSelectionInfo.textContent = n === 0 ? "" : `已选 ${n} 项`;
-
-    if (n > 0) {
-      fillCategorySelect(bmMoveCat, getState().categories);
-      bmMoveForm.hidden = false;
-    } else {
-      bmMoveForm.hidden = true;
-    }
-
-    const total = getState().bookmarks.length;
-    if (total === 0) return;
-    bmSelectAll.textContent = n === total ? "返选" : "全选";
-  }
-
-  const bmMoveForm = document.getElementById("bm-move-form")!;
-  const bmMoveCat = document.getElementById("bm-move-cat") as HTMLSelectElement;
-
-  document.getElementById("bm-move-cancel")!.addEventListener("click", () => {
-    bmMoveForm.hidden = true;
-  });
-  document.getElementById("bm-move-save")!.addEventListener("click", () => {
-    const target = bmMoveCat.value;
-    if (!target) return;
-    const ids = Array.from(selectedIds);
-    selectedIds.clear();
-    updateBookmarksCategory(ids, target);
-    bmMoveForm.hidden = true;
-    updateSelectionInfo();
-  });
-
-  bmSelectAll.addEventListener("click", () => {
-    const allIds = getState().bookmarks.map((b) => b.id);
-    if (selectedIds.size === allIds.length) {
-      selectedIds.clear();
-    } else {
-      allIds.forEach((id) => selectedIds.add(id));
-    }
-    renderBmGrid(getState());
-    updateSelectionInfo();
-  });
-
-  bmMoveDelete.addEventListener("click", () => {
-    if (selectedIds.size === 0) return;
-    openModalConfirm("删除书签", `确认删除 ${selectedIds.size} 个书签？`, () => {
-      deleteBookmarks(Array.from(selectedIds));
-      selectedIds.clear();
-      updateSelectionInfo();
-    });
-  });
-
-  // 单条添加
-  const bmAddBtn = document.getElementById("bm-add")!;
-  const bmForm = document.getElementById("bm-form")!;
-  const bmFormTitle = document.getElementById("bm-form-title") as HTMLInputElement;
-  const bmFormUrl = document.getElementById("bm-form-url") as HTMLInputElement;
-  const bmFormCat = document.getElementById("bm-form-cat") as HTMLSelectElement;
-
-  function fillCategorySelect(sel: HTMLSelectElement, categories: Category[]): void {
-    sel.innerHTML = `<option value=""></option>` + categories
-      .sort((a, b) => a.order - b.order)
-      .map((c) => `<option value="${c.id}">${escapeHtml(c.name)}</option>`)
-      .join("");
-  }
-
-  function saveBmForm(): void {
-    const url = bmFormUrl.value.trim();
-    if (!url) {
-      showToast("请输入网址", "error");
-      return;
-    }
-    const state = getState();
-    const href = normalizeUrl(url);
-    if (state.bookmarks.some((b) => b.href === href)) {
-      showToast("该书签已存在", "error");
-      return;
-    }
-    addBookmark({
-      href: url,
-      title: bmFormTitle.value || undefined,
-      categoryId: bmFormCat.value,
-    });
-    bmFormTitle.value = "";
-    bmFormUrl.value = "";
-    bmForm.hidden = true;
-    bmGrid.hidden = false;
-    showToast("书签已添加", "info");
-  }
-
-  bmAddBtn.addEventListener("click", () => {
-    bmBatchForm.hidden = true;
-    bmGrid.hidden = true;
-    fillCategorySelect(bmFormCat, getState().categories);
-    bmFormTitle.value = "";
-    bmFormUrl.value = "";
-    bmForm.hidden = false;
-    bmFormUrl.focus();
-  });
-
-  document.getElementById("bm-form-cancel")!.addEventListener("click", () => {
-    bmForm.hidden = true;
-    bmGrid.hidden = false;
-  });
-  document.getElementById("bm-form-save")!.addEventListener("click", saveBmForm);
-  bmFormUrl.addEventListener("keydown", (e) => { if (e.key === "Enter") saveBmForm(); });
-
-  // 批量
-  const bmBatchBtn = document.getElementById("bm-batch")!;
-  const bmBatchForm = document.getElementById("bm-batch-form")!;
-  const bmBatchText = document.getElementById("bm-batch-text") as HTMLTextAreaElement;
-  const bmBatchCat = document.getElementById("bm-batch-cat") as HTMLSelectElement;
-
-  bmBatchBtn.addEventListener("click", () => {
-    bmForm.hidden = true;
-    bmGrid.hidden = true;
-    fillCategorySelect(bmBatchCat, getState().categories);
-    bmBatchText.value = "";
-    bmBatchForm.hidden = false;
-    bmBatchText.focus();
-  });
-  document.getElementById("bm-batch-cancel")!.addEventListener("click", () => {
-    bmBatchForm.hidden = true;
-    bmGrid.hidden = false;
-  });
-  document.getElementById("bm-batch-save")!.addEventListener("click", () => {
-    const lines = bmBatchText.value.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-    if (lines.length === 0) {
-      showToast("没有输入任何内容", "error");
-      return;
-    }
-
-    const existingHrefs = new Set(getState().bookmarks.map((b) => b.href));
-    let added = 0, skipped = 0;
-    const normalLines: string[] = [];
-
-    for (const line of lines) {
-      const addMatch = line.match(/^add\s+(\S+)(?:\s+(.+?)(?:\s+(.+))?)?$/i);
-      if (addMatch) {
-        const url = addMatch[1];
-        const href = normalizeUrl(url);
-        if (existingHrefs.has(href)) { skipped++; continue; }
-        existingHrefs.add(href);
-        const title = addMatch[2]?.trim();
-        const catName = addMatch[3]?.trim();
-        let catId = "";
-        if (catName) {
-          const state = getState();
-          const existing = state.categories.find(
-            (c) => c.name.toLowerCase() === catName.toLowerCase(),
-          );
-          catId = existing ? existing.id : addCategory(catName).id;
-        }
-        addBookmark({ href: url, title, categoryId: catId });
-        added++;
-      } else {
-        normalLines.push(line);
-        const href = normalizeUrl(line);
-        if (existingHrefs.has(href)) { skipped++; normalLines.pop(); }
-        else existingHrefs.add(href);
-      }
-    }
-
-    if (normalLines.length > 0) {
-      const items = parseBatchInput(normalLines.join("\n"));
-      if (items.length > 0) {
-        addBookmarksBatch(items, bmBatchCat.value);
-        added += items.length;
-      }
-    }
-
-    const msg = `已导入 ${added} 个书签${skipped > 0 ? `，${skipped} 个重复已跳过` : ""}`;
-    showToast(msg, skipped > 0 && added === 0 ? "error" : "info");
-    bmBatchText.value = "";
-    bmBatchForm.hidden = true;
-    bmGrid.hidden = false;
-  });
-
-  // ---------- 分组 panel ----------
-  const catListEl = document.getElementById("cat-list")!;
-  const catAddForm = document.getElementById("cat-add-form")!;
-  const catAddName = document.getElementById("cat-add-name") as HTMLInputElement;
-
-  document.getElementById("cat-add")!.addEventListener("click", () => {
-    catAddName.value = "";
-    catAddForm.hidden = false;
-    catAddName.focus();
-  });
-  document.getElementById("cat-add-cancel")!.addEventListener("click", () => {
-    catAddForm.hidden = true;
-  });
-  document.getElementById("cat-add-save")!.addEventListener("click", () => {
-    const name = catAddName.value.trim();
-    if (!name) return;
-    addCategory(name);
-    catAddForm.hidden = true;
-  });
-  catAddName.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      (document.getElementById("cat-add-save") as HTMLButtonElement).click();
-    }
-  });
-
-  function renderCatList(state: Store): void {
-    const sortedCats = [...state.categories].sort((a, b) => a.order - b.order);
-    if (sortedCats.length === 0) {
-      catListEl.innerHTML = `<div style="color: var(--muted); font-size: 13px; text-align: center; padding: 24px;">还没有分组</div>`;
-      return;
-    }
-    catListEl.innerHTML = sortedCats
-      .map((c) => {
-        const count = state.bookmarks.filter((b) => b.categoryId === c.id).length;
-        const isEditing = editingCatId === c.id;
-        const info = isEditing
-          ? `<div class="cat-row-edit">
-              <input type="text" class="cat-edit-input" value="${escapeAttr(c.name)}" />
-              <button type="button" class="btn primary" data-act="save-edit">保存</button>
-              <button type="button" class="btn" data-act="cancel-edit">取消</button>
-            </div>`
-          : `<div class="cat-row-info">
-              <span class="cat-row-name">${escapeHtml(c.name)}</span>
-              <span class="cat-row-count">${count} 项</span>
-              ${c.builtin ? '<span class="cat-row-badge">内置</span>' : ""}
-            </div>`;
-        const actions = isEditing
-          ? ""
-          : `<div class="cat-row-actions">
-              <button type="button" class="btn" data-act="edit">重命名</button>
-              <button type="button" class="btn danger" data-act="delete" ${c.builtin ? "" : ""}>删除</button>
-            </div>`;
-        return `<div class="cat-row" data-id="${c.id}">${info}${actions}</div>`;
-      })
-      .join("");
-
-    catListEl.querySelectorAll<HTMLElement>(".cat-row").forEach((row) => {
-      const id = row.dataset.id!;
-
-      const editBtn = row.querySelector<HTMLButtonElement>('[data-act="edit"]');
-      if (editBtn) {
-        editBtn.addEventListener("click", () => {
-          editingCatId = id;
-          renderCatList(getState());
-        });
-      }
-
-      const delBtn = row.querySelector<HTMLButtonElement>('[data-act="delete"]');
-      if (delBtn) {
-        delBtn.addEventListener("click", () => {
-          const cat = getState().categories.find((c) => c.id === id);
-          if (!cat) return;
-          const count = getState().bookmarks.filter((b) => b.categoryId === id).length;
-          const msg =
-            count > 0
-              ? `分组「${cat.name}」下有 ${count} 个书签。删除分组后这些书签将移出分类（仍保留在「全部」中）。`
-              : `确认删除分组「${cat.name}」？`;
-          openModalConfirm("删除分组", msg, () => {
-            deleteCategory(id);
-          });
-        });
-      }
-
-      const saveBtn = row.querySelector<HTMLButtonElement>('[data-act="save-edit"]');
-      if (saveBtn) {
-        saveBtn.addEventListener("click", () => {
-          const input = row.querySelector<HTMLInputElement>(".cat-edit-input");
-          if (!input) return;
-          const name = input.value.trim();
-          if (!name) return;
-          renameCategory(id, name);
-          editingCatId = null;
-        });
-      }
-
-      const cancelBtn = row.querySelector<HTMLButtonElement>('[data-act="cancel-edit"]');
-      if (cancelBtn) {
-        cancelBtn.addEventListener("click", () => {
-          editingCatId = null;
-          renderCatList(getState());
-        });
-      }
-
-      const editInput = row.querySelector<HTMLInputElement>(".cat-edit-input");
-      if (editInput) {
-        editInput.addEventListener("keydown", (e) => {
-          if (e.key === "Enter") {
-            saveBtn?.click();
-          } else if (e.key === "Escape") {
-            cancelBtn?.click();
-          }
-        });
-        editInput.focus();
-        editInput.select();
-      }
-
-      // 拖拽重排（500ms 长按激活）
-      let dragTimer: ReturnType<typeof setTimeout> | null = null;
-      let dragActive = false;
-      let dragFrom = -1;
-
-      row.draggable = false;
-
-      row.addEventListener("mousedown", () => {
-        dragTimer = setTimeout(() => {
-          dragActive = true;
-          row.draggable = true;
-        }, 250);
-      });
-
-      row.addEventListener("mouseup", () => {
-        if (dragTimer) clearTimeout(dragTimer);
-        dragTimer = null;
-        row.draggable = false;
-        setTimeout(() => { dragActive = false; }, 10);
-      });
-
-      row.addEventListener("mouseleave", () => {
-        if (dragTimer) clearTimeout(dragTimer);
-        dragTimer = null;
-        row.draggable = false;
-      });
-
-      row.addEventListener("dragstart", (e) => {
-        if (!dragActive) { e.preventDefault(); return; }
-        dragFrom = Array.from(catListEl.querySelectorAll(".cat-row")).indexOf(row);
-        e.dataTransfer?.setData("text/plain", String(dragFrom));
-        row.style.opacity = "0.5";
-      });
-
-      row.addEventListener("dragend", () => {
-        row.style.opacity = "1";
-        dragActive = false;
-        dragFrom = -1;
-        catListEl.querySelectorAll<HTMLElement>(".cat-row").forEach((r) => {
-          r.style.borderBottom = "";
-        });
-      });
-
-      row.addEventListener("dragover", (e) => {
-        e.preventDefault();
-        catListEl.querySelectorAll<HTMLElement>(".cat-row").forEach((r) => {
-          r.style.borderBottom = "";
-        });
-        const idx = Array.from(catListEl.querySelectorAll(".cat-row")).indexOf(row);
-        if (idx !== dragFrom) {
-          row.style.borderBottom = "2px solid var(--accent)";
-        }
-      });
-
-      row.addEventListener("dragleave", () => {
-        row.style.borderBottom = "";
-      });
-
-      row.addEventListener("drop", (e) => {
-        e.preventDefault();
-        catListEl.querySelectorAll<HTMLElement>(".cat-row").forEach((r) => {
-          r.style.borderBottom = "";
-        });
-        const toIdx = Array.from(catListEl.querySelectorAll(".cat-row")).indexOf(row);
-        if (dragFrom !== -1 && toIdx !== -1 && dragFrom !== toIdx) {
-          reorderCategory(dragFrom, toIdx);
-        }
-        dragActive = false;
-      });
-    });
-  }
-
-  // ---------- 快捷键 panel (只读) ----------
-  // 已在 HTML 里静态渲染
-
-  // ---------- 排序菜单 ----------
-  const bmSortBtn = document.getElementById("bm-sort")!;
-  const bmSortMenu = document.getElementById("bm-sort-menu")!;
-
-  bmSortBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    const wasHidden = bmSortMenu.hidden;
-    bmSortMenu.hidden = !wasHidden;
-    bmSortBtn.setAttribute("aria-expanded", String(!wasHidden));
-  });
-  document.addEventListener("click", (e) => {
-    if (!bmSortMenu.hidden && !(e.target as HTMLElement).closest(".bm-sort-wrap")) {
-      bmSortMenu.hidden = true;
-    }
-  });
-  bmSortMenu.querySelectorAll<HTMLButtonElement>(".bm-sort-item").forEach((b) => {
-    b.addEventListener("click", () => {
-      const sort = b.dataset.sort as BookmarkSort;
-      setBookmarkSort(sort);
-      setTimeout(() => { bmSortMenu.hidden = true; }, 0);
-    });
-  });
-
-  function renderSortMenu(state: Store): void {
-    const labels: Record<BookmarkSort, string> = {
-      alpha: "首字母",
-      added: "添加时间",
-    };
-    bmSortBtn.textContent = `排序：${labels[state.bookmarkSort]} ▾`;
-    bmSortMenu.querySelectorAll<HTMLButtonElement>(".bm-sort-item").forEach((b) => {
-      b.classList.toggle("active", b.dataset.sort === state.bookmarkSort);
-    });
-  }
-
-  // ---------- 搜索引擎 panel ----------
-  function engineLabel(state: Store, id: SearchEngineId): string {
-    if (id === "custom") return state.customSearchEngine?.name ?? "+";
-    const entry = SEARCH_ENGINES[id as Exclude<SearchEngineId, "custom">];
-    return entry?.label ?? "Google";
-  }
-
-  function renderSearch(state: Store): void {
-    const cardsEl = document.getElementById("search-cards")!;
-    const presetEntries = Object.entries(SEARCH_ENGINES) as [SearchEngineId, { label: string; url: string }][];
-    const custom = state.customSearchEngine;
-
-    let html = presetEntries.map(
-      ([id, info]) => `
-      <button type="button" class="theme-card search-card ${id === state.searchEngine ? "active" : ""}" data-engine="${id}">
-        <span class="theme-card-name">${info.label}</span>
-      </button>
-    `,
-    ).join("");
-
-    if (custom?.name) {
-      html += `
-      <button type="button" class="theme-card search-card ${state.searchEngine === "custom" ? "active" : ""}" data-engine="custom">
-        <span class="theme-card-name search-card-custom">${custom.name}</span>
-      </button>
-      `;
-    }
-    html += `
-      <button type="button" class="theme-card search-card ${state.searchEngine === "custom" ? "active" : ""}" data-engine="custom">
-        <span class="theme-card-name search-card-custom">+</span>
-      </button>
-    `;
-
-    cardsEl.innerHTML = html;
-
-    cardsEl.querySelectorAll<HTMLButtonElement>(".theme-card").forEach((card) => {
-      card.addEventListener("click", () => {
-        const id = card.dataset.engine as SearchEngineId;
-        if (id === "custom") {
-          const form = document.getElementById("search-custom-form")!;
-          const nameInput = document.getElementById("search-custom-name") as HTMLInputElement;
-          const urlInput = document.getElementById("search-custom-url") as HTMLInputElement;
-          const st = getState();
-          nameInput.value = st.customSearchEngine?.name ?? "";
-          urlInput.value = st.customSearchEngine?.url ?? "";
-          form.hidden = false;
-          nameInput.focus();
-        } else {
-          setSearchEngine(id);
-          const st = getState();
-          renderSearch(st);
-          showToast(`搜索引擎已切换为 ${engineLabel(st, id)}`, "info");
-        }
-      });
-    });
-
-    const promptEl = document.querySelector<HTMLElement>("#prompt-engine");
-    if (promptEl) promptEl.textContent = engineLabel(state, state.searchEngine);
-  }
-
-  // 自定义搜索引擎表单
-  document.getElementById("search-custom-cancel")?.addEventListener("click", () => {
-    document.getElementById("search-custom-form")!.hidden = true;
-  });
-  function saveCustomSearch(): void {
-    const name = (document.getElementById("search-custom-name") as HTMLInputElement).value.trim();
-    const url = (document.getElementById("search-custom-url") as HTMLInputElement).value.trim();
-    if (!name || !url) {
-      showToast("请填写引擎名称和搜索 URL", "error");
-      return;
-    }
-    if (!url.includes("{q}") && !url.includes("${q}")) {
-      showToast("搜索 URL 中需要包含 {q} 作为关键词占位符", "error");
-      return;
-    }
-    setCustomSearchEngine(name, url);
-    document.getElementById("search-custom-form")!.hidden = true;
-    renderSearch(getState());
-    showToast(`已设置自定义搜索引擎：${name}`, "info");
-  }
-
-  document.getElementById("search-custom-save")?.addEventListener("click", saveCustomSearch);
-  document.getElementById("search-custom-name")?.addEventListener("keydown", (e) => { if (e.key === "Enter") saveCustomSearch(); });
-  document.getElementById("search-custom-url")?.addEventListener("keydown", (e) => { if (e.key === "Enter") saveCustomSearch(); });
-
-  // ---------- Workflow ----------
-  function renderWorkflows(state: Store): void {
-    const listEl = document.getElementById("wf-list")!;
-    if (state.workflows.length === 0) {
-      listEl.innerHTML = `<div style="color: var(--muted); font-size: 13px; text-align: center; padding: 24px;">还没有工作流</div>`;
-      return;
-    }
-    listEl.innerHTML = state.workflows.map((w) => {
-      const count = (w.urls?.length ?? 0) || state.bookmarks.filter((b) => w.bookmarkIds.includes(b.id)).length;
-      return `
-        <div class="cat-row" data-id="${escapeAttr(w.id)}">
-          <div class="cat-row-info">
-            <span class="cat-row-name">${escapeHtml(w.name)}</span>
-            <span class="cat-row-count">${count} 项</span>
-          </div>
-          <div class="cat-row-actions">
-            <button type="button" class="btn danger" data-act="wf-delete">删除</button>
-          </div>
-        </div>
-      `;
-    }).join("");
-
-    listEl.querySelectorAll<HTMLElement>(".cat-row").forEach((row) => {
-      const delBtn = row.querySelector<HTMLButtonElement>('[data-act="wf-delete"]');
-      if (delBtn) {
-        delBtn.addEventListener("click", () => {
-          openModalConfirm("删除工作流", "确认删除该工作流？", () => {
-            deleteWorkflow(row.dataset.id!);
-          });
-        });
-      }
-    });
-  }
-
-  // ---------- 新建工作流弹层 ----------
-  const wfAddBtn = document.getElementById("wf-add")!;
-  const wfPopover = document.getElementById("wf-popover")!;
-  // 移到 body 下，避免被 #manage-modal 的 stacking context 限制 + .panel-body 的 overflow 裁剪
-  document.body.appendChild(wfPopover);
-  const wfPopoverName = document.getElementById("wf-popover-name") as HTMLInputElement;
-  const wfPopoverUrls = document.getElementById("wf-popover-urls") as HTMLTextAreaElement;
-  const wfPopoverGrid = document.getElementById("wf-popover-grid")!;
-  const wfCatFilters = document.getElementById("wf-cat-filters")!;
-  let wfActiveCatFilter = "all";
-
-  function renderWfCatFilters(state: Store): void {
-    wfCatFilters.innerHTML = `<button type="button" class="wf-cat-filter ${wfActiveCatFilter === "all" ? "active" : ""}" data-cat="all">全部</button>` +
-      state.categories
-        .sort((a, b) => a.order - b.order)
-        .map((c) =>
-          `<button type="button" class="wf-cat-filter ${wfActiveCatFilter === c.id ? "active" : ""}" data-cat="${c.id}">${escapeHtml(c.name)}</button>`,
-        )
-        .join("");
-
-    wfCatFilters.querySelectorAll<HTMLButtonElement>(".wf-cat-filter").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        wfActiveCatFilter = btn.dataset.cat!;
-        renderWfBookmarks(getState());
-      });
-    });
-  }
-
-  function renderWfBookmarks(state: Store): void {
-    const bms = wfActiveCatFilter === "all"
-      ? state.bookmarks
-      : state.bookmarks.filter((b) => b.categoryId === wfActiveCatFilter);
-
-    wfPopoverGrid.innerHTML = bms
-      .map((b) => {
-        const checked = wfPopoverUrls.value.split("\n").map((l) => l.trim()).some((l) => l === b.href);
-        return `
-        <label class="bm-grid-item ${checked ? "selected" : ""}" data-id="${b.id}">
-          <input type="checkbox" ${checked ? "checked" : ""} />
-          <span class="bm-name" title="${escapeAttr(b.href)}">${escapeHtml(b.title)}</span>
-        </label>
-      `;
-      })
-      .join("");
-
-    wfPopoverGrid.querySelectorAll<HTMLLabelElement>(".bm-grid-item").forEach((label) => {
-      const id = label.dataset.id!;
-      const bm = getState().bookmarks.find((b) => b.id === id);
-      if (!bm) return;
-      const cb = label.querySelector("input")!;
-      const toggle = () => {
-        const url = bm.href;
-        const lines = wfPopoverUrls.value.split("\n").map((l) => l.trim()).filter(Boolean);
-        if (cb.checked) {
-          if (!lines.includes(url)) {
-            wfPopoverUrls.value = [...lines, url].join("\n");
-          }
-        } else {
-          wfPopoverUrls.value = lines.filter((l) => l !== url).join("\n");
-        }
-        label.classList.toggle("selected", cb.checked);
-      };
-      cb.addEventListener("change", toggle);
-    });
-  }
-
-  wfAddBtn.addEventListener("click", () => {
-    wfPopoverName.value = "";
-    wfPopoverUrls.value = "";
-    wfActiveCatFilter = "all";
-    const state = getState();
-    renderWfCatFilters(state);
-    renderWfBookmarks(state);
-    saveFocus();
-    wfPopover.hidden = false;
-    setTimeout(() => wfPopoverName.focus(), 0);
-  });
-
-  wfPopover.querySelectorAll<HTMLElement>("[data-wf-close]").forEach((el) => {
-    el.addEventListener("click", () => { wfPopover.hidden = true; restoreFocus(); });
-  });
-
-  function saveWfPopover(): void {
-    const name = wfPopoverName.value.trim();
-    if (!name) { showToast("请输入工作流名称", "error"); return; }
-    const lines = wfPopoverUrls.value.split("\n").map((l) => l.trim()).filter(Boolean);
-    const checkedIds: string[] = [];
-    const checkedUrls: string[] = [];
-    wfPopoverGrid.querySelectorAll<HTMLLabelElement>(".bm-grid-item").forEach((label) => {
-      const cb = label.querySelector<HTMLInputElement>("input[type=checkbox]");
-      if (cb?.checked) {
-        checkedIds.push(label.dataset.id!);
-        const bm = getState().bookmarks.find((b) => b.id === label.dataset.id);
-        if (bm) checkedUrls.push(bm.href);
-      }
-    });
-    const allUrls = [...new Set([...lines, ...checkedUrls])];
-    if (allUrls.length === 0) { showToast("请至少输入一个链接或选择一个书签", "error"); return; }
-    const result = addWorkflow(name, checkedIds, allUrls);
-    if (!result) { showToast("工作流名称已存在", "error"); return; }
-    wfPopover.hidden = true;
-    showToast(`已创建工作流「${name}」(${allUrls.length} 项)`);
-  }
-
-  document.getElementById("wf-popover-save")!.addEventListener("click", saveWfPopover);
-  wfPopoverName.addEventListener("keydown", (e) => { if (e.key === "Enter") saveWfPopover(); });
-
-// ---------- 同步 panel ----------
-  let lastStatus: "idle" | "syncing" | "synced" | "error" | "offline" = "idle";
-  let unsubscribeSyncStatus: (() => void) | null = null;
-  let unsubscribeAuth: (() => void) | null = null;
-  let syncAutoEnabled = true;
-
-  function renderSyncPanel(): void {
-    const stateInfo = document.getElementById("sync-state-info")!;
-    const accountInfo = document.getElementById("sync-account-info")!;
-    const indicator = document.getElementById("sync-indicator-text")!;
-    const lastTime = document.getElementById("sync-last-time")!;
-    const storageInfo = document.getElementById("sync-storage-info")!;
-    const forceBtn = document.getElementById("sync-force-btn")! as HTMLButtonElement;
-    const autoToggle = document.getElementById("sync-auto-toggle") as HTMLInputElement;
-    const logoutBtn = document.getElementById("sync-logout-btn")! as HTMLButtonElement;
-    const loginBtn = document.getElementById("sync-login-btn")! as HTMLButtonElement;
-    const signupBtn = document.getElementById("sync-signup-btn")! as HTMLButtonElement;
-    const unauthActions = document.getElementById("sync-unauth-actions")!;
-    const authActions = document.getElementById("sync-auth-actions")!;
-    const unconfiguredDiv = document.getElementById("sync-unconfigured")!;
-
-    // 模态框元素
-    const authModal = document.getElementById("sync-auth-modal")!;
-    const authModalTitle = document.getElementById("sync-modal-title")!;
-    const authModalDesc = document.getElementById("sync-modal-desc")!;
-    const authTabs = authModal.querySelectorAll<HTMLButtonElement>(".sync-modal-tab");
-    const loginPanel = authModal.querySelector<HTMLDivElement>('[data-sync-panel="login"]')!;
-    const signupPanel = authModal.querySelector<HTMLDivElement>('[data-sync-panel="signup"]')!;
-    const modalLoginBtn = document.getElementById("sync-modal-login-btn")! as HTMLButtonElement;
-    const modalSignupBtn = document.getElementById("sync-modal-signup-btn")! as HTMLButtonElement;
-    const modalLoginEmail = document.getElementById("sync-modal-email") as HTMLInputElement;
-    const modalLoginPw = document.getElementById("sync-modal-password") as HTMLInputElement;
-    const modalSignupEmail = document.getElementById("sync-modal-signup-email") as HTMLInputElement;
-    const modalSignupPw = document.getElementById("sync-modal-signup-password") as HTMLInputElement;
-    const modalLoginError = document.getElementById("sync-modal-error")!;
-    const modalSignupError = document.getElementById("sync-modal-signup-error")!;
-    const forgotPasswordBtn = document.getElementById("sync-forgot-password")!;
-    const resetModal = document.getElementById("sync-reset-modal")!;
-    const resetEmail = document.getElementById("sync-reset-email") as HTMLInputElement;
-    const resetSendBtn = document.getElementById("sync-reset-send-btn")! as HTMLButtonElement;
-    const resetError = document.getElementById("sync-reset-error")!;
-    const resetSuccess = document.getElementById("sync-reset-success")!;
-    const verifyModal = document.getElementById("sync-verify-modal")!;
-    const verifyEmail = document.getElementById("sync-verify-email")!;
-    const resendVerifyBtn = document.getElementById("sync-resend-verify-btn")! as HTMLButtonElement;
-    let activeAuthTab: "login" | "signup" = "login";
-
-    unsubscribeSyncStatus?.();
-    unsubscribeAuth?.();
-
-    function updateUI() {
-      const user = getCurrentUser();
-      const configured = isConfigured();
-
-      // 重置显示
-      unauthActions.hidden = true;
-      authActions.hidden = true;
-      unconfiguredDiv.hidden = true;
-      stateInfo.hidden = false;
-      accountInfo.hidden = false;
-
-      if (!configured) {
-        // 未配置 Supabase
-        unconfiguredDiv.hidden = false;
-        stateInfo.hidden = true;
-        accountInfo.innerHTML = '<div class="sync-account-placeholder">同步未配置</div>';
-        indicator.textContent = "未配置";
-        indicator.className = "sync-state-value";
-        lastTime.textContent = "—";
-        storageInfo.textContent = "—";
-        return;
-      }
-
-      if (!user) {
-        // 未登录
-        unauthActions.hidden = false;
-        accountInfo.innerHTML = '<div class="sync-account-placeholder">未登录</div>';
-        indicator.textContent = "未登录";
-        indicator.className = "sync-state-value";
-        lastTime.textContent = "—";
-        storageInfo.textContent = "本地存储中";
-        return;
-      }
-
-      // 已登录 - 初始化远程同步（仅首次）
-      initRemoteSync();
-      authActions.hidden = false;
-      const verified = isEmailVerified();
-      const email = user.email ?? "—";
-      accountInfo.innerHTML = `
-        <div class="sync-account-signed-in">
-          <span class="sync-account-email">${escapeHtml(email)}</span>
-          <span class="sync-account-meta">${verified ? "✓ 邮箱已验证" : "⚠ 邮箱未验证"}</span>
-        </div>
-      `;
-      indicator.textContent = "已连接";
-      indicator.className = "sync-state-value";
-
-      // 同步状态由 onSyncStatus 更新
-      const last = getLastSynced();
-      lastTime.textContent = last ? new Date(last).toLocaleString() : "从未同步";
-
-      // 存储信息
-      const state = getState();
-      const localSize = JSON.stringify(state).length;
-      storageInfo.textContent = `本地: ${(localSize / 1024).toFixed(1)}KB · 远程: 同步后更新`;
-    }
-
-    // 打开登录/注册模态框
-    function openAuthModal(tab: "login" | "signup" = "login") {
-      activeAuthTab = tab;
-      authTabs.forEach((t) => {
-        const isActive = t.dataset.syncTab === tab;
-        t.classList.toggle("active", isActive);
-        t.setAttribute("aria-selected", String(isActive));
-      });
-      loginPanel.hidden = tab !== "login";
-      signupPanel.hidden = tab !== "signup";
-      modalLoginError.hidden = true;
-      modalSignupError.hidden = true;
-      modalLoginEmail.value = "";
-      modalLoginPw.value = "";
-      modalSignupEmail.value = "";
-      modalSignupPw.value = "";
-      authModal.hidden = false;
-      saveFocus();
-      setTimeout(() => {
-        (tab === "login" ? modalLoginEmail : modalSignupEmail).focus();
-      }, 0);
-    }
-
-    function closeAuthModal() {
-      authModal.hidden = true;
-      restoreFocus();
-    }
-
-    // 切换标签
-    authTabs.forEach((tab) => {
-      tab.addEventListener("click", () => openAuthModal(tab.dataset.syncTab as "login" | "signup"));
-    });
-
-    // 关闭模态框
-    authModal.querySelectorAll<HTMLElement>("[data-sync-modal-close]").forEach((el) => {
-      el.addEventListener("click", closeAuthModal);
-    });
-
-    // 登录提交
-    modalLoginBtn.onclick = async () => {
-      const email = modalLoginEmail.value.trim();
-      const pw = modalLoginPw.value;
-      if (!email || !pw) { modalLoginError.textContent = "请输入邮箱和密码"; modalLoginError.hidden = false; return; }
-      modalLoginError.hidden = true;
-      modalLoginBtn.disabled = true;
-      try {
-        const user = await signInWithEmail(email, pw);
-        showToast(`已登录：${user?.email ?? email}`, "info");
-        closeAuthModal();
-        await refreshUser();
-        doSync().catch(() => {});
-      } catch (e: any) {
-        const msg = e?.message ?? "登录失败";
-        modalLoginError.textContent = msg;
-        modalLoginError.hidden = false;
-        showToast(`登录失败：${msg}`, "error");
-      }
-      modalLoginBtn.disabled = false;
-    };
-
-    // 注册提交
-    modalSignupBtn.onclick = async () => {
-      const email = modalSignupEmail.value.trim();
-      const pw = modalSignupPw.value;
-      if (!email || !pw) { modalSignupError.textContent = "请输入邮箱和密码"; modalSignupError.hidden = false; return; }
-      if (pw.length < 6) { modalSignupError.textContent = "密码至少 6 位"; modalSignupError.hidden = false; return; }
-      modalSignupError.hidden = true;
-      modalSignupBtn.disabled = true;
-      try {
-        await signUpWithEmail(email, pw);
-        showToast(`已注册：${email}（如开启邮箱验证请前往邮箱确认）`, "info");
-        closeAuthModal();
-        // 检查是否需要邮箱验证
-        const user = getCurrentUser();
-        if (user && !isEmailVerified()) {
-          verifyEmail.textContent = email;
-          verifyModal.hidden = false;
-          saveFocus();
-        }
-        await refreshUser();
-        doSync().catch(() => {});
-      } catch (e: any) {
-        const msg = e?.message ?? "注册失败";
-        modalSignupError.textContent = msg;
-        modalSignupError.hidden = false;
-        showToast(`注册失败：${msg}`, "error");
-      }
-      modalSignupBtn.disabled = false;
-    }
-
-    // 忘记密码
-    forgotPasswordBtn.onclick = () => {
-      closeAuthModal();
-      resetEmail.value = "";
-      resetError.hidden = true;
-      resetSuccess.hidden = true;
-      resetModal.hidden = false;
-      saveFocus();
-      setTimeout(() => resetEmail.focus(), 0);
-    };
-
-    // 重置密码模态框
-    resetModal.querySelectorAll<HTMLElement>("[data-sync-reset-close]").forEach((el) => {
-      el.addEventListener("click", () => { resetModal.hidden = true; restoreFocus(); });
-    });
-
-    resetSendBtn.onclick = async () => {
-      const email = resetEmail.value.trim();
-      if (!email) { resetError.textContent = "请输入邮箱"; resetError.hidden = false; return; }
-      resetError.hidden = true;
-      resetSuccess.hidden = true;
-      resetSendBtn.disabled = true;
-      try {
-        await resetPassword(email);
-        resetSuccess.textContent = `重置邮件已发送到 ${email}，请查收`;
-        resetSuccess.hidden = false;
-      } catch (e: any) {
-        resetError.textContent = e?.message ?? "发送失败";
-        resetError.hidden = false;
-      }
-      resetSendBtn.disabled = false;
-    };
-
-    // 邮箱验证模态框
-    verifyModal.querySelectorAll<HTMLElement>("[data-sync-verify-close]").forEach((el) => {
-      el.addEventListener("click", () => { verifyModal.hidden = true; restoreFocus(); });
-    });
-
-    resendVerifyBtn.onclick = async () => {
-      resendVerifyBtn.disabled = true;
-      try {
-        await resendVerification();
-        showToast("验证邮件已重发", "info");
-      } catch (e: any) {
-        showToast(`重发失败：${e?.message ?? ""}`, "error");
-      }
-      resendVerifyBtn.disabled = false;
-    };
-
-    // 回车键提交
-    modalLoginEmail.onkeydown = (e) => { if (e.key === "Enter") modalLoginPw.focus(); };
-    modalLoginPw.onkeydown = (e) => { if (e.key === "Enter") modalLoginBtn.click(); };
-    modalSignupEmail.onkeydown = (e) => { if (e.key === "Enter") modalSignupPw.focus(); };
-    modalSignupPw.onkeydown = (e) => { if (e.key === "Enter") modalSignupBtn.click(); };
-    resetEmail.onkeydown = (e) => { if (e.key === "Enter") resetSendBtn.click(); };
-
-    // 登录/注册按钮
-    loginBtn.onclick = () => openAuthModal("login");
-    signupBtn.onclick = () => openAuthModal("signup");
-
-    // 退出登录
-    logoutBtn.onclick = async () => {
-      try {
-        await signOut();
-        showToast("已退出登录", "info");
-        await refreshUser();
-      } catch (e: any) {
-        showToast(`退出失败：${e?.message ?? ""}`, "error");
-      }
-    };
-
-    // 立即同步
-    forceBtn.onclick = () => {
-      indicator.textContent = "同步中...";
-      indicator.className = "sync-state-value syncing";
-      doSync();
-    };
-
-    // 自动同步开关
-    autoToggle.checked = syncAutoEnabled;
-    autoToggle.onchange = () => {
-      syncAutoEnabled = autoToggle.checked;
-    };
-
-    // 监听 auth 变化
-    async function refreshUser() {
-      updateUI();
-    }
-
-    unsubscribeAuth = onAuthChange(() => refreshUser());
-
-    // 监听同步状态
-    unsubscribeSyncStatus = onSyncStatus((status) => {
-      lastStatus = status;
-      const labels: Record<string, string> = {
-        idle: "就绪",
-        syncing: "同步中...",
-        synced: "已同步",
-        error: "同步失败",
-        offline: "离线",
-      };
-      indicator.textContent = labels[status] ?? status;
-      indicator.className = "sync-state-value " + status;
-      const last = getLastSynced();
-      lastTime.textContent = last ? new Date(last).toLocaleString() : "从未同步";
-      // 存储信息更新
-      const state = getState();
-      const localSize = JSON.stringify(state).length;
-      storageInfo.textContent = `本地: ${(localSize / 1024).toFixed(1)}KB · 远程: 同步后更新`;
-    });
-
-    // 初始渲染
-    updateUI();
-  }
-
-  window.addEventListener("manage:close", () => {
-    unsubscribeSyncStatus?.();
-    unsubscribeAuth?.();
-  });
-
-  // ---------- 订阅 store ----------
+  // ---------- Init panels ----------
+  initBookmarksPanel();
+  initCategoriesPanel();
+  initSearchPanel();
+  initWorkflowsPanel();
+
+  // ---------- Store subscription ----------
   subscribe((state) => {
     if (!modal.hidden) {
       if (activeSub === "theme") renderTheme(state);
@@ -2562,9 +1614,7 @@ import { initRemoteSync } from "../lib/store";
         updateSelectionInfo();
         renderSortMenu(state);
       }
-      if (activeSub === "categories") {
-        renderCatList(state);
-      }
+      if (activeSub === "categories") renderCatList(state);
       if (activeSub === "workflows") renderWorkflows(state);
       if (activeSub === "search") renderSearch(state);
     }
@@ -2575,15 +1625,5 @@ import { initRemoteSync } from "../lib/store";
     }
   });
 
-  // 初始渲染主题卡片
   renderTheme(getState());
-
-  // @ts-ignore - 测试用全局 API
-  if (typeof window !== "undefined") {
-    (window as any).__testStore = { getState, addCategory, renameCategory, deleteCategory, addBookmark, deleteBookmarks, addBookmarksBatch, setThemeStyle, setThemeMode, subscribe };
-    (window as any).__testAuth = { getCurrentUser, signInWithEmail, signUpWithEmail, signOut, resetPassword, isEmailVerified };
-    (window as any).__testSync = { doSync, onSyncStatus };
-  }
-
-
 </script>

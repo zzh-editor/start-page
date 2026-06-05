@@ -236,184 +236,12 @@ const username = "zzh.editor";
 </style>
 
 <script>
-  import { addBookmark, addCategory, getState, subscribe, SEARCH_ENGINES, getSearchUrl, normalizeUrl, setSearchEngine } from "../lib/store";
+  import { addBookmark, addCategory, getState, subscribe } from "../lib/store";
   import { showToast, openUrls } from "../lib/helpers";
-
-  const PREFIX_RE = /^(?:r:|m:)/;
-
-  let _typingTimer: ReturnType<typeof setTimeout> | null = null;
-
-  const PLACEHOLDER_EXAMPLES = [
-    "输入 add <网址> <名称> <分组> 快速添加书签",
-    "按 / 聚焦输入框，Tab 切换分组",
-    "长按书签可编辑或删除",
-    "点击右上角齿轮打开设置面板",
-    "输入关键词匹配书签，回车直接打开",
-    "Esc 清空 / ↑↓ 浏览历史",
-    "wf+名称 或 workflow+名称 批量打开工作流",
-    "请输入关键词或直接访问网址",
-  ];
-
-  function stopTyping(input: HTMLInputElement): void {
-    if (_typingTimer) {
-      clearTimeout(_typingTimer);
-      _typingTimer = null;
-    }
-    input.placeholder = "";
-  }
-
-  function typePlaceholder(input: HTMLInputElement, examples: string[], speed = 50) {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      input.placeholder = examples[0];
-      return;
-    }
-    let exampleIndex = 0;
-    let charIndex = 0;
-    function step() {
-      const current = examples[exampleIndex];
-      if (charIndex < current.length) {
-        input.placeholder += current.charAt(charIndex);
-        charIndex++;
-        _typingTimer = setTimeout(step, speed);
-      } else {
-        _typingTimer = setTimeout(() => {
-          input.placeholder = "";
-          charIndex = 0;
-          exampleIndex = (exampleIndex + 1) % examples.length;
-          step();
-        }, 2000);
-      }
-    }
-    _typingTimer = setTimeout(step, speed);
-  }
-
-  function updateSearchEnginePrompt(): void {
-    const state = (window as any).__startpageStore?.();
-    if (!state) return;
-    const el = document.getElementById("prompt-engine");
-    if (!el) return;
-    if (state.searchEngine === "custom" && state.customSearchEngine?.name) {
-      el.textContent = state.customSearchEngine.name;
-    } else {
-      const map: Record<string, string> = { google: "Google", bing: "Bing", duckduckgo: "DuckDuckGo", brave: "Brave" };
-      el.textContent = map[state.searchEngine] ?? "Google";
-    }
-  }
-
-  function detectBrowser(): string {
-    const ua = navigator.userAgent;
-    if (ua.includes("Firefox")) return "firefox";
-    if (ua.includes("Edg/")) return "edge";
-    if (ua.includes("Chrome")) return "chrome";
-    if (ua.includes("Safari")) return "safari";
-    return "web";
-  }
-
-  function resetStyles(elements: NodeListOf<HTMLAnchorElement>) {
-    elements.forEach((el) => {
-      el.classList.remove("bookmark-match", "bookmark-nomatch");
-      el.parentElement?.classList.remove("bookmark-match", "bookmark-nomatch", "bookmark-nomatch-parent");
-    });
-  }
-
-  function stripPrefix(value: string): string {
-    return value.replace(PREFIX_RE, "");
-  }
-
-  function highlightMatches(value: string, elements: NodeListOf<HTMLAnchorElement>) {
-    if (value === "") {
-      resetStyles(elements);
-      return;
-    }
-    const needle = stripPrefix(value);
-    elements.forEach((el) => {
-      const li = el.parentElement!;
-      const isMatch = el.textContent!.toLowerCase().includes(needle);
-      li.classList.toggle("bookmark-match", isMatch);
-      li.classList.toggle("bookmark-nomatch", !isMatch);
-      li.classList.toggle("bookmark-nomatch-parent", !isMatch);
-    });
-  }
-
-  function getEngineUrl(query: string): string {
-    const st = getState();
-    return getSearchUrl(st.searchEngine, query, st.customSearchEngine);
-  }
-
-  function navigate(value: string) {
-    if (value.startsWith("r:")) {
-      const q = value.slice(2).trim();
-      window.location.href = getEngineUrl(`site:reddit.com ${q}`);
-      return;
-    }
-    if (value.startsWith("m:")) {
-      const q = value.slice(2).trim();
-      window.location.href = getEngineUrl(`site:myanimelist.net ${q}`);
-      return;
-    }
-    if (/^(javascript|data|vbscript):/i.test(value)) return;
-    if (/^[\w-]+(\.[a-z]{2,})+(\/.*)?$/i.test(value)) {
-      window.location.href = `https://${value}`;
-      return;
-    }
-    window.location.href = getEngineUrl(value);
-  }
-
-  function runCategory(name: string): boolean {
-    const needle = name.trim().toLowerCase();
-    if (!needle) return false;
-
-    // 动态读取 store（避免和 store 加载竞态）
-    const state = (window as any).__startpageStore?.();
-    if (!state) {
-      showToast("数据未就绪", "error");
-      return true;
-    }
-
-    const matches = state.categories.filter((c: any) =>
-      c.name.toLowerCase().includes(needle),
-    );
-
-    if (matches.length === 0) {
-      showToast(`未找到分类「${name}」`, "error");
-      return true;
-    }
-
-    // 多个匹配时取第一个，并提示
-    const cat = matches[0];
-    if (matches.length > 1) {
-      showToast(
-        `匹配到 ${matches.length} 个分类，已打开：${matches.map((m: any) => m.name).join("、")}`,
-        "info",
-      );
-    }
-
-    const bms = state.bookmarks
-      .filter((b: any) => b.categoryId === cat.id)
-      .sort((a: any, b: any) => a.title.localeCompare(b.title));
-
-    if (bms.length === 0) {
-      showToast(`分类「${cat.name}」下还没有书签`, "error");
-      return true;
-    }
-
-    openUrls(bms.map((b: any) => b.href));
-    showToast(`已打开 ${bms.length} 个标签页（${cat.name}）`, "info");
-    return true;
-  }
-
-  function findBookmarkMatch(value: string, elements: NodeListOf<HTMLAnchorElement>): HTMLAnchorElement | null {
-    const needle = stripPrefix(value);
-    if (!needle) return null;
-    for (const el of elements) {
-      if (el.textContent!.toLowerCase().includes(needle)) return el;
-    }
-    return null;
-  }
-
-  function refreshElements(): NodeListOf<HTMLAnchorElement> {
-    return document.querySelectorAll<HTMLAnchorElement>(".bookmark-list a");
-  }
+  import { typePlaceholder, stopTyping, PLACEHOLDER_EXAMPLES } from "../lib/command/typewriter";
+  import { highlightMatches, resetStyles, findBookmarkMatch, refreshElements } from "../lib/command/bookmark-match";
+  import { navigate, runCategory } from "../lib/command/navigate";
+  import { updateSearchEnginePrompt, renderEngineMenu, positionEngineMenu, positionWfSuggest, repositionAllMenus } from "../lib/command/engine-menu";
 
   function initializeTerminal() {
     const input = document.getElementById("terminal-input") as HTMLInputElement | null;
@@ -427,7 +255,6 @@ const username = "zzh.editor";
     typePlaceholder(input, PLACEHOLDER_EXAMPLES);
     resetStyles(elements);
 
-    // 监听书签容器变化（tab 切换、store 变化）后重新查询
     const host = document.getElementById("bookmark-host");
     if (host) {
       const observer = new MutationObserver(() => {
@@ -438,14 +265,12 @@ const username = "zzh.editor";
       observer.observe(host, { childList: true, subtree: true });
     }
 
-    input.addEventListener("focus", () => {
-      stopTyping(input);
-    });
+    input.addEventListener("focus", () => { stopTyping(input); });
 
     input.addEventListener("blur", () => {
       if (input.value === "") {
         resetStyles(elements);
-        if (!_typingTimer) typePlaceholder(input, PLACEHOLDER_EXAMPLES);
+        if (!(window as any).__typingTimer) typePlaceholder(input, PLACEHOLDER_EXAMPLES);
       }
     });
 
@@ -466,9 +291,7 @@ const username = "zzh.editor";
 
       if (event.key === "Escape") {
         event.stopPropagation();
-        if (!suggest.hidden) {
-          suggest.hidden = true;
-        }
+        if (!suggest.hidden) suggest.hidden = true;
         if (input.value !== "") {
           input.value = "";
           resetStyles(elements);
@@ -509,9 +332,7 @@ const username = "zzh.editor";
       }
 
       if (event.key === "Enter") {
-        if (!suggest.hidden) {
-          suggest.hidden = true;
-        }
+        if (!suggest.hidden) suggest.hidden = true;
 
         const value = input.value.trim();
         if (!value) return;
@@ -519,27 +340,18 @@ const username = "zzh.editor";
         history.push(value);
         historyIndex = history.length;
 
-        // add <url> <name> <cat> 命令：添加书签（分组不存在自动新建）
         const addMatch = value.match(/^add(?:\s+(\S+))?(?:\s+(.+?)(?:\s+(.+))?)?$/i);
         if (addMatch) {
           const url = addMatch[1];
           const title = addMatch[2]?.trim();
           const catName = addMatch[3]?.trim();
-
           const state = (window as any).__startpageStore?.();
-          if (!state) {
-            showToast("数据未就绪", "error");
-            return;
-          }
-
+          if (!state) { showToast("数据未就绪", "error"); return; }
           let catId = "";
           if (catName) {
-            const existing = state.categories.find(
-              (c: any) => c.name.toLowerCase() === catName.toLowerCase(),
-            );
+            const existing = state.categories.find((c: any) => c.name.toLowerCase() === catName.toLowerCase());
             catId = existing ? existing.id : addCategory(catName).id;
           }
-
           addBookmark({ href: url, title, categoryId: catId });
           showToast(`已添加${title ? `「${title}」` : ""}${catName ? ` → ${catName}` : ""}`, "info");
           input.value = "";
@@ -547,7 +359,6 @@ const username = "zzh.editor";
           return;
         }
 
-        // run <分类名>  命令
         const runMatch = value.match(/^run\s+(.+)$/i);
         if (runMatch) {
           runCategory(runMatch[1]);
@@ -556,7 +367,6 @@ const username = "zzh.editor";
           return;
         }
 
-        // wf<名称> / workflow<名称>  批量打开工作流
         const wfMatch = value.match(/^(?:wf|workflow)[\s+]+?(.+)$/i) || value.match(/^(?:wf|workflow)(.+)$/i);
         if (wfMatch) {
           const needle = wfMatch[1].trim().toLowerCase();
@@ -596,63 +406,7 @@ const username = "zzh.editor";
       }
     });
 
-    // ---------- 搜索引擎下拉菜单 ----------
-    function renderEngineMenu(): void {
-      const menu = document.getElementById("engine-menu") as HTMLDivElement;
-      if (!menu) return;
-      const state = (window as any).__startpageStore?.();
-      if (!state) return;
-      const current = state.searchEngine;
-      const custom = state.customSearchEngine;
-      let html = "";
-      for (const [id, info] of Object.entries(SEARCH_ENGINES)) {
-        const active = current === id ? "active" : "";
-        html += `<button type="button" class="engine-item ${active}" data-engine="${id}">${info.label}</button>`;
-      }
-      if (custom?.name) {
-        const active = current === "custom" ? "active" : "";
-        html += `<button type="button" class="engine-item ${active}" data-engine="custom">${custom.name}</button>`;
-      }
-      menu.innerHTML = html;
-
-      menu.querySelectorAll<HTMLButtonElement>(".engine-item").forEach((btn) => {
-        btn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          const id = btn.dataset.engine!;
-          setSearchEngine(id as any);
-          menu.hidden = true;
-          updateSearchEnginePrompt();
-        });
-      });
-    }
-
-    function positionEngineMenu(): void {
-      const promptEl = document.getElementById("prompt-engine")!;
-      const menu = document.getElementById("engine-menu")!;
-      const rect = promptEl.getBoundingClientRect();
-      menu.style.left = rect.left + "px";
-      menu.style.top = (rect.bottom + 6) + "px";
-      menu.style.minWidth = Math.max(160, rect.width) + "px";
-    }
-
-    function positionWfSuggest(): void {
-      const suggest = document.getElementById("wf-suggest") as HTMLDivElement;
-      if (!suggest || suggest.hidden) return;
-      const inputRect = input.getBoundingClientRect();
-      suggest.style.left = inputRect.left + "px";
-      suggest.style.top = (inputRect.bottom + 6) + "px";
-      suggest.style.minWidth = Math.max(220, inputRect.width) + "px";
-    }
-
-    function repositionAllMenus(): void {
-      const menu = document.getElementById("engine-menu")!;
-      if (!menu.hidden) positionEngineMenu();
-      positionWfSuggest();
-    }
-
-    window.addEventListener("scroll", repositionAllMenus, { passive: true });
-    window.addEventListener("resize", repositionAllMenus);
-
+    // ---------- Engine menu ----------
     const promptEngine = document.getElementById("prompt-engine")!;
     promptEngine.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -679,6 +433,9 @@ const username = "zzh.editor";
       if (!suggest.hidden) suggest.hidden = true;
     });
 
+    window.addEventListener("scroll", repositionAllMenus, { passive: true });
+    window.addEventListener("resize", repositionAllMenus);
+
     subscribe(() => {
       updateSearchEnginePrompt();
       const menu = document.getElementById("engine-menu")!;
@@ -688,7 +445,7 @@ const username = "zzh.editor";
       }
     });
 
-    // ---------- 工作流智能提示 ----------
+    // ---------- Workflow suggestions ----------
     let wfSuggestionIndex = -1;
     let wfFiltered: any[] = [];
 
@@ -696,10 +453,7 @@ const username = "zzh.editor";
       const suggest = document.getElementById("wf-suggest") as HTMLDivElement;
       if (!suggest) return;
       const state = (window as any).__startpageStore?.();
-      if (!state) {
-        suggest.hidden = true;
-        return;
-      }
+      if (!state) { suggest.hidden = true; return; }
       if (state.workflows.length === 0) {
         suggest.hidden = true;
         wfSuggestionIndex = -1;
@@ -719,27 +473,21 @@ const username = "zzh.editor";
       suggest.hidden = false;
 
       suggest.querySelectorAll<HTMLButtonElement>(".wf-suggest-item").forEach((btn, idx) => {
-        btn.addEventListener("click", () => {
-          insertWfSuggestion(idx);
-        });
-        btn.addEventListener("mouseenter", () => {
-          updateWfSuggestionHighlight(idx);
-        });
+        btn.addEventListener("click", () => { insertWfSuggestion(idx); });
+        btn.addEventListener("mouseenter", () => { updateWfSuggestionHighlight(idx); });
       });
     }
 
     function updateWfSuggestionHighlight(index: number): void {
       wfSuggestionIndex = index;
-      const items = document.querySelectorAll<HTMLButtonElement>(".wf-suggest-item");
-      items.forEach((item, i) => item.classList.toggle("active", i === index));
+      document.querySelectorAll<HTMLButtonElement>(".wf-suggest-item").forEach((item, i) => item.classList.toggle("active", i === index));
     }
 
     function insertWfSuggestion(index: number): void {
       const wf = wfFiltered[index];
       if (!wf) return;
       input.value = "wf " + wf.name;
-      const suggest = document.getElementById("wf-suggest")!;
-      suggest.hidden = true;
+      document.getElementById("wf-suggest")!.hidden = true;
       input.focus();
     }
 

@@ -379,6 +379,23 @@ export function renameWorkflow(id: string, name: string): boolean {
   return true;
 }
 
+export function updateWorkflow(id: string, patch: Partial<Pick<Workflow, "name" | "bookmarkIds" | "urls">>): boolean {
+  const trimmed = patch.name?.trim();
+  if (patch.name !== undefined && !trimmed) return false;
+  const existing = getState().workflows.find((w) => w.name.toLowerCase() === trimmed!.toLowerCase() && w.id !== id);
+  if (existing) return false;
+  const list = getState().workflows.map((w) => {
+    if (w.id !== id) return w;
+    const next = { ...w };
+    if (patch.name) next.name = trimmed!;
+    if (patch.bookmarkIds) next.bookmarkIds = patch.bookmarkIds;
+    if (patch.urls) next.urls = patch.urls;
+    return next;
+  });
+  commit({ ...getState(), workflows: list });
+  return true;
+}
+
 // ---------- Category CRUD ----------
 export function addCategory(name: string): Category {
   const trimmed = name.trim() || "未命名";
@@ -496,6 +513,145 @@ export function importJSON(text: string, mode: "merge" | "replace" = "replace"):
 export function resetToDefaults(): void {
   const init = buildDefaultStore();
   commit(init);
+}
+
+// ---------- 浏览器书签 HTML 导入 / 导出 ----------
+const UNCATEGORIZED = "未分类";
+const BOOKMARK_HTML_HEADER = `<!DOCTYPE NETSCAPE-Bookmark-file-1>
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">
+<TITLE>Bookmarks</TITLE>
+<H1>Bookmarks</H1>`;
+
+export function exportForBrowser(selectedIds?: string[]): string {
+  const state = getState();
+  const bookmarks = selectedIds
+    ? state.bookmarks.filter((b) => selectedIds.includes(b.id))
+    : state.bookmarks;
+  const cats = [...state.categories].sort((a, b) => a.order - b.order);
+  const uncategorizedBookmarks = bookmarks.filter((b) => !b.categoryId);
+  const catMap = new Map<string, Bookmark[]>();
+  for (const b of bookmarks) {
+    if (!b.categoryId) continue;
+    if (!catMap.has(b.categoryId)) catMap.set(b.categoryId, []);
+    catMap.get(b.categoryId)!.push(b);
+  }
+
+  let html = BOOKMARK_HTML_HEADER + "\n<DL><p>\n";
+  for (const cat of cats) {
+    const bms = catMap.get(cat.id) || [];
+    if (bms.length === 0) continue;
+    html += `  <DT><H3>${escapeHtml(cat.name)}</H3>\n  <DL><p>\n`;
+    for (const b of bms) {
+      html += `    <DT><A HREF="${escapeAttr(b.href)}" ADD_DATE="${b.createdAt}">${escapeHtml(b.title)}</A>\n`;
+    }
+    html += `  </DL><p>\n`;
+  }
+  if (uncategorizedBookmarks.length > 0) {
+    html += `  <DT><H3>${UNCATEGORIZED}</H3>\n  <DL><p>\n`;
+    for (const b of uncategorizedBookmarks) {
+      html += `    <DT><A HREF="${escapeAttr(b.href)}" ADD_DATE="${b.createdAt}">${escapeHtml(b.title)}</A>\n`;
+    }
+    html += `  </DL><p>\n`;
+  }
+  html += "</DL><p>\n";
+  return html;
+}
+
+export type HtmlImportEntry = { href: string; title: string; categoryName: string };
+export type HtmlImportPreview = { entries: HtmlImportEntry[]; categories: string[] };
+
+function parseNetscapeHtml(html: string): HtmlImportEntry[] {
+  const entries: HtmlImportEntry[] = [];
+  const lines = html.split(/\r?\n/);
+  let currentCategory = UNCATEGORIZED;
+
+  for (const line of lines) {
+    const catMatch = line.match(/<H3[^>]*>(.*?)<\/H3>/i);
+    if (catMatch) {
+      currentCategory = catMatch[1].trim();
+      continue;
+    }
+    const aMatch = line.match(/<A\s+HREF="([^"]*)"[^>]*>(.*?)<\/A>/i);
+    if (aMatch) {
+      entries.push({ href: aMatch[1], title: aMatch[2].trim() || extractHostname(aMatch[1]), categoryName: currentCategory });
+    }
+  }
+  return entries;
+}
+
+export function importFromHtmlPreview(html: string): HtmlImportPreview {
+  const entries = parseNetscapeHtml(html);
+  const catSet = new Set<string>();
+  for (const e of entries) catSet.add(e.categoryName);
+  return { entries, categories: Array.from(catSet) };
+}
+
+export function importFromHtml(
+  html: string,
+  mode: "merge" | "replace",
+  targetCategoryId?: string,
+): { ok: boolean; message: string; imported: number } {
+  try {
+    const entries = parseNetscapeHtml(html);
+    if (entries.length === 0) return { ok: false, message: "未找到书签条目", imported: 0 };
+
+    if (mode === "replace") {
+      const newBms: Bookmark[] = entries.map((e, idx) => ({
+        id: uid(),
+        href: normalizeUrl(e.href),
+        title: e.title,
+        categoryId: targetCategoryId ?? "",
+        createdAt: Date.now() + idx,
+      }));
+      const seenCats = new Set(getState().categories.map((c) => c.name));
+      const newCats: Category[] = [];
+      let catOrder = getState().categories.length;
+      for (const e of entries) {
+        if (e.categoryName !== UNCATEGORIZED && e.categoryName && !seenCats.has(e.categoryName)) {
+          newCats.push({ id: uid(), name: e.categoryName, order: catOrder++ });
+          seenCats.add(e.categoryName);
+        }
+      }
+      commit({
+        ...getState(),
+        categories: [...getState().categories, ...newCats],
+        bookmarks: newBms,
+      });
+      return { ok: true, message: `已替换为 ${newBms.length} 条书签`, imported: newBms.length };
+    }
+
+    const existingHrefs = new Set(getState().bookmarks.map((b) => b.href));
+    const seenCats = new Set(getState().categories.map((c) => c.name));
+    const state = getState();
+    let catOrder = state.categories.length;
+    const newCats: Category[] = [];
+    const catNameCache = new Map<string, string>();
+
+    function ensureCat(name: string): string {
+      if (!name || name === UNCATEGORIZED) return targetCategoryId ?? "";
+      const cached = catNameCache.get(name);
+      if (cached) return cached;
+      const existing = state.categories.find((c) => c.name === name);
+      if (existing) { catNameCache.set(name, existing.id); return existing.id; }
+      const created = addCategory(name);
+      catNameCache.set(name, created.id);
+      return created.id;
+    }
+
+    let imported = 0;
+    for (const e of entries) {
+      const href = normalizeUrl(e.href);
+      if (existingHrefs.has(href)) continue;
+      existingHrefs.add(href);
+      const catId = targetCategoryId || ensureCat(e.categoryName);
+      addBookmark({ href: e.href, title: e.title, categoryId: catId });
+      imported++;
+    }
+
+    return { ok: true, message: `已导入 ${imported} 条新书签${imported > 0 ? "" : "（全部已存在）"}`, imported };
+  } catch (e) {
+    return { ok: false, message: `解析失败：${(e as Error).message}`, imported: 0 };
+  }
 }
 
 // 暴露到 window，便于跨组件访问（避免循环 import）

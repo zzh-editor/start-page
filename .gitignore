@@ -6,3 +6,5 @@ package-lock.json
 *.log
 .DS_Store
 
+tests/__pycache__/
+.venv/
