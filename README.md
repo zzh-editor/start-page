@@ -4,6 +4,17 @@
 
 **在线预览**：[https://start-page-tau-flax.vercel.app/](https://start-page-tau-flax.vercel.app/)
 
+<table>
+  <tr>
+    <td><img src="./screenshots/homepage-default.png" alt="默认主题主页" width="100%"/></td>
+    <td><img src="./screenshots/settings-default.png" alt="默认主题设置面板" width="100%"/></td>
+  </tr>
+  <tr>
+    <td><img src="./screenshots/homepage-pixel.png" alt="像素主题主页" width="100%"/></td>
+    <td><img src="./screenshots/settings-pixel.png" alt="像素主题设置面板" width="100%"/></td>
+  </tr>
+</table>
+
 ## 功能
 
 - **书签管理** — 增删改、批量导入、分组管理、排序、分页翻页
@@ -55,6 +66,6 @@ npm run build      # 构建到 dist/
 - **TypeScript** — 全栈类型安全
 - **零后端** — 纯静态 + 客户端 Supabase
 
-## 许可证
+## 🙏 致谢
 
-MIT — 参见 [LICENCE](./LICENCE)
+- [ahmetdem/start-page](https://github.com/ahmetdem/start-page) — 上游原项目
