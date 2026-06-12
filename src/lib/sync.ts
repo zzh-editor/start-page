@@ -4,12 +4,10 @@ import { getState, replaceStore } from "./store";
 import type { Store, Bookmark, Category, Workflow } from "./store";
 
 export type SyncStatus = "idle" | "syncing" | "synced" | "error" | "offline";
-export type SyncMode = "merge" | "upload" | "download";
+export type SyncMode = "upload" | "download";
 
 let _syncStatus: SyncStatus = "idle";
 const syncListeners = new Set<(status: SyncStatus) => void>();
-let syncTimer: ReturnType<typeof setTimeout> | null = null;
-const SYNC_DEBOUNCE_MS = 800;
 
 function assertCanSync(): boolean {
   return isConfigured() && !!getCurrentUser();
@@ -31,7 +29,6 @@ function setSyncStatus(status: SyncStatus) {
   syncListeners.forEach((fn) => fn(status));
 }
 
-// ---------- 导出数据供 UI 展示 ----------
 export function getLastSynced(): number | null {
   try {
     const raw = localStorage.getItem("startpage:sync:last");
@@ -41,7 +38,6 @@ export function getLastSynced(): number | null {
   }
 }
 
-// ---------- 核心推送 ----------
 async function pushData(): Promise<boolean> {
   const supabase = getClient();
   const user = getCurrentUser();
@@ -129,14 +125,12 @@ async function pushData(): Promise<boolean> {
   }
 }
 
-// ---------- 核心拉取 ----------
 async function pullData(): Promise<{
   store: Partial<Store> | null;
-  hasRemoteData: boolean;
 }> {
   const supabase = getClient();
   const user = getCurrentUser();
-  if (!supabase || !user) return { store: null, hasRemoteData: false };
+  if (!supabase || !user) return { store: null };
 
   try {
     const [bmRes, catRes, wfRes, settingsRes] = await Promise.all([
@@ -179,8 +173,6 @@ async function pullData(): Promise<{
       updatedAt: r.updated_at ? new Date(r.updated_at).getTime() : Date.now(),
     }));
 
-    const hasRemoteData = bookmarks.length > 0 || categories.length > 0 || workflows.length > 0;
-
     const store: Partial<Store> = {
       bookmarks,
       categories,
@@ -203,83 +195,14 @@ async function pullData(): Promise<{
         : Date.now();
     }
 
-    return { store, hasRemoteData };
+    return { store };
   } catch (e) {
     console.warn("sync: pull failed", e);
-    return { store: null, hasRemoteData: false };
+    return { store: null };
   }
 }
 
-// ---------- 通用合并 ----------
-function mergeArray<T extends { id: string; updatedAt: number }>(
-  local: T[],
-  remote: T[] | undefined,
-): T[] {
-  const remoteMap = new Map<string, T>();
-  for (const item of remote ?? []) {
-    remoteMap.set(item.id, item);
-  }
-  const merged: T[] = [];
-  const seenIds = new Set<string>();
-  for (const localItem of local) {
-    seenIds.add(localItem.id);
-    const remoteItem = remoteMap.get(localItem.id);
-    if (!remoteItem) {
-      merged.push(localItem);
-    } else {
-      merged.push(localItem.updatedAt >= remoteItem.updatedAt ? localItem : remoteItem);
-    }
-  }
-  for (const item of remote ?? []) {
-    if (!seenIds.has(item.id)) {
-      merged.push(item);
-    }
-  }
-  return merged;
-}
-
-// ---------- 智能合并 ----------
-function mergeStore(local: Store, remote: Partial<Store>): Store {
-  const mergedBookmarks = mergeArray(local.bookmarks, remote.bookmarks);
-  const mergedCategories = mergeArray(local.categories, remote.categories);
-  const mergedWorkflows = mergeArray(local.workflows, remote.workflows);
-
-  let mergedThemeMode = local.themeMode;
-  let mergedThemeStyle = local.themeStyle;
-  let mergedBookmarkSort = local.bookmarkSort;
-  let mergedSearchEngine = local.searchEngine;
-  let mergedCustomSearchEngine = local.customSearchEngine;
-  let mergedSettingsUpdatedAt = local.settingsUpdatedAt ?? 0;
-
-  if (remote.themeMode !== undefined) {
-    const remoteSettingsTime = remote.settingsUpdatedAt ?? 0;
-    if (remoteSettingsTime > mergedSettingsUpdatedAt) {
-      mergedThemeMode = remote.themeMode;
-      mergedThemeStyle = remote.themeStyle ?? "default";
-      mergedBookmarkSort = remote.bookmarkSort ?? "alpha";
-      mergedSearchEngine = remote.searchEngine ?? "google";
-      mergedCustomSearchEngine = remote.customSearchEngine;
-      mergedSettingsUpdatedAt = remoteSettingsTime;
-    }
-  }
-
-  return {
-    ...local,
-    version: 7,
-    themeMode: mergedThemeMode,
-    themeStyle: mergedThemeStyle,
-    bookmarkSort: mergedBookmarkSort,
-    searchEngine: mergedSearchEngine,
-    customSearchEngine: mergedCustomSearchEngine,
-    bookmarks: mergedBookmarks,
-    categories: mergedCategories,
-    workflows: mergedWorkflows,
-    settingsUpdatedAt: mergedSettingsUpdatedAt,
-  };
-}
-
-// ---------- 执行同步 ----------
-export async function doSync(mode: SyncMode = "merge"): Promise<void> {
+export async function doSync(mode: SyncMode): Promise<void> {
   if (!navigator.onLine) {
     setSyncStatus("offline");
     return;
@@ -308,43 +231,17 @@ export async function doSync(mode: SyncMode = "merge"): Promise<void> {
     }
     return;
   }
-
-  // merge: pull → merge → push
-  const { store: remoteStore, hasRemoteData } = await pullData();
-  if (hasRemoteData && remoteStore) {
-    const merged = mergeStore(getState(), remoteStore);
-    replaceStore(merged);
-  }
-  const ok = await pushData();
-  localStorage.setItem("startpage:sync:last", String(Date.now()));
-  setSyncStatus(ok ? "synced" : "error");
 }
 
-export function enqueueSync(): void {
-  const autoSync = localStorage.getItem("startpage:sync:auto");
-  if (autoSync !== "true") return;
-  if (syncTimer) clearTimeout(syncTimer);
-  syncTimer = setTimeout(() => doSync("merge"), SYNC_DEBOUNCE_MS);
-}
+// 不再自动同步，只保留导出供兼容
+export function enqueueSync(): void {}
 
-// ---------- 首次启动同步 ----------
+// 不再自动同步
 export async function initSync(): Promise<boolean> {
-  if (!assertCanSync()) return false;
-  if (!navigator.onLine) {
-    setSyncStatus("offline");
-    return false;
-  }
-  return doSync("merge").then(() => true).catch(() => false);
+  return false;
 }
 
-// ---------- 在线/离线监听 ----------
 if (typeof window !== "undefined") {
-  window.addEventListener("online", () => {
-    if (getSyncStatus() === "offline") {
-      setSyncStatus("idle");
-      doSync("merge");
-    }
-  });
   window.addEventListener("offline", () => {
     setSyncStatus("offline");
   });

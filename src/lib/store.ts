@@ -206,22 +206,7 @@ const listeners = new Set<Listener>();
 
 let state: Store | null = null;
 
-let _remoteInitDone = false;
-
-export function initRemoteSync(): void {
-  if (_remoteInitDone) return;
-  _remoteInitDone = true;
-  setTimeout(async () => {
-    try {
-      const { initAuth } = await import("./auth");
-      const { initSync } = await import("./sync");
-      const user = await initAuth();
-      if (user) initSync();
-    } catch (e) {
-      console.warn("store: remote init failed, using local", e);
-    }
-  }, 0);
-}
+// 远程同步仅通过手动触发，不自动执行
 
 export function getState(): Store {
   if (typeof window === "undefined") {
@@ -673,9 +658,6 @@ export function importFromHtml(
   }
 }
 
-// 启动时主动恢复认证状态（不再依赖同步面板触发）
 if (typeof window !== "undefined") {
-  (window as unknown as { __startpageStore: () => Store }).__startpageStore =
-    getState;
-  initRemoteSync();
+  (window as unknown as { __startpageStore: () => Store }).__startpageStore = getState;
 }

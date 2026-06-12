@@ -210,17 +210,11 @@
               <div class="sync-direction-row">
                 <label for="sync-direction-select" class="sync-direction-label">同步方向</label>
                 <select id="sync-direction-select" class="sync-direction-select">
-                  <option value="merge">智能合并（推荐）</option>
                   <option value="upload">本地上传 → 云端</option>
                   <option value="download">云端下载 → 本地</option>
                 </select>
               </div>
               <button type="button" class="btn primary sync-btn-wide" id="sync-force-btn">立即同步</button>
-              <label class="sync-toggle">
-                <input type="checkbox" id="sync-auto-toggle" checked />
-                <span class="sync-toggle-slider"></span>
-                <span class="sync-toggle-label">自动同步</span>
-              </label>
               <button type="button" class="btn sync-btn-wide" id="sync-logout-btn">退出登录</button>
             </div>
             <div class="sync-action-group" id="sync-unconfigured" hidden>

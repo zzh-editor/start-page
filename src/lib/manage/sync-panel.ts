@@ -14,7 +14,6 @@ export function initSyncPanel(): void {
   const storageInfo = document.getElementById("sync-storage-info")!;
   const forceBtn = document.getElementById("sync-force-btn")! as HTMLButtonElement;
   const directionSelect = document.getElementById("sync-direction-select") as HTMLSelectElement;
-  const autoToggle = document.getElementById("sync-auto-toggle") as HTMLInputElement;
   const logoutBtn = document.getElementById("sync-logout-btn")! as HTMLButtonElement;
   const loginBtn = document.getElementById("sync-login-btn")! as HTMLButtonElement;
   const signupBtn = document.getElementById("sync-signup-btn")! as HTMLButtonElement;
@@ -133,7 +132,6 @@ export function initSyncPanel(): void {
       showToast(`已登录：${user?.email ?? email}`, "info");
       closeAuthModal();
       await refreshUser();
-      doSync().catch(() => {});
     } catch (e: any) {
       const msg = e?.message ?? "登录失败";
       modalLoginError.textContent = msg;
@@ -159,7 +157,6 @@ export function initSyncPanel(): void {
       showToast(`已注册：${email}，请登录`, "info");
       closeAuthModal();
       await refreshUser();
-      doSync().catch(() => {});
     } catch (e: any) {
       const msg = e?.message ?? "注册失败";
       modalSignupError.textContent = msg;
@@ -230,12 +227,6 @@ export function initSyncPanel(): void {
     indicator.className = "sync-state-value syncing";
     const mode = directionSelect.value as SyncMode;
     doSync(mode);
-  };
-
-  const autoSync = localStorage.getItem("startpage:sync:auto");
-  autoToggle.checked = autoSync === "true";
-  autoToggle.onchange = () => {
-    localStorage.setItem("startpage:sync:auto", String(autoToggle.checked));
   };
 
   async function refreshUser() { updateUI(); }
