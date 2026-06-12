@@ -489,7 +489,13 @@ const username = "zzh.editor";
         wfFiltered = [];
         return;
       }
-      wfFiltered = state.workflows;
+      const pfx = prefix.toLowerCase();
+      wfFiltered = pfx ? state.workflows.filter((w: any) => w.name.toLowerCase().includes(pfx)) : state.workflows;
+      if (wfFiltered.length === 0) {
+        suggest.hidden = true;
+        wfSuggestionIndex = -1;
+        return;
+      }
       wfSuggestionIndex = 0;
       suggest.innerHTML = wfFiltered.map((w: any, i: number) => {
         const count = (w.urls?.length ?? 0) || state.bookmarks.filter((b: any) => w.bookmarkIds.includes(b.id)).length;
@@ -502,7 +508,7 @@ const username = "zzh.editor";
       suggest.hidden = false;
 
       suggest.querySelectorAll<HTMLButtonElement>(".wf-suggest-item").forEach((btn, idx) => {
-        btn.addEventListener("click", () => { insertWfSuggestion(idx); });
+        btn.addEventListener("click", () => { executeWfSuggestion(idx); });
         btn.addEventListener("mouseenter", () => { updateWfSuggestionHighlight(idx); });
       });
     }
@@ -512,24 +518,41 @@ const username = "zzh.editor";
       document.querySelectorAll<HTMLButtonElement>(".wf-suggest-item").forEach((item, i) => item.classList.toggle("active", i === index));
     }
 
-    function insertWfSuggestion(index: number): void {
+    function executeWfSuggestion(index: number): void {
       const wf = wfFiltered[index];
       if (!wf) return;
-      input.value = "wf " + wf.name;
       document.getElementById("wf-suggest")!.hidden = true;
+      const state = (window as any).__startpageStore?.();
+      if (state) {
+        const bmUrls = state.bookmarks
+          .filter((b: any) => wf.bookmarkIds?.includes(b.id))
+          .map((b: any) => b.href);
+        const allUrls: string[] = (wf.urls?.length ? wf.urls : bmUrls);
+        if (allUrls.length > 0) {
+          openUrls(allUrls);
+          showToast(`已打开 ${allUrls.length} 个标签页（${wf.name}）`, "info");
+        } else {
+          showToast(`工作流「${wf.name}」中没有链接`, "error");
+        }
+      }
+      input.value = "";
+      resetStyles(elements);
       input.focus();
     }
 
     function scrollToFirstMatch(elements: NodeListOf<HTMLAnchorElement>): void {
       for (const el of elements) {
+        if (!el.isConnected) continue;
         const li = el.parentElement;
         if (li?.classList.contains("bookmark-match")) {
           const page = li.closest(".bookmark-page");
           if (page) {
             const track = page.closest(".bookmark-pages-track");
             if (track) {
-              const pageIndex = Array.from(track.children).indexOf(page);
-              track.scrollTo({ left: pageIndex * track.clientWidth, behavior: "smooth" });
+              const trackRect = track.getBoundingClientRect();
+              const pageRect = page.getBoundingClientRect();
+              const targetLeft = track.scrollLeft + pageRect.left - trackRect.left;
+              track.scrollTo({ left: targetLeft, behavior: "smooth" });
             }
           }
           break;

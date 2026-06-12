@@ -233,7 +233,7 @@ export function initSyncPanel(): void {
   };
 
   const autoSync = localStorage.getItem("startpage:sync:auto");
-  autoToggle.checked = autoSync !== "false";
+  autoToggle.checked = autoSync === "true";
   autoToggle.onchange = () => {
     localStorage.setItem("startpage:sync:auto", String(autoToggle.checked));
   };

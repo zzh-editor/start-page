@@ -298,8 +298,8 @@ export async function doSync(mode: SyncMode = "merge"): Promise<void> {
   }
 
   if (mode === "download") {
-    const { store, hasRemoteData } = await pullData();
-    if (hasRemoteData && store) {
+    const { store } = await pullData();
+    if (store) {
       replaceStore(store);
       localStorage.setItem("startpage:sync:last", String(Date.now()));
       setSyncStatus("synced");
@@ -322,7 +322,7 @@ export async function doSync(mode: SyncMode = "merge"): Promise<void> {
 
 export function enqueueSync(): void {
   const autoSync = localStorage.getItem("startpage:sync:auto");
-  if (autoSync === "false") return;
+  if (autoSync !== "true") return;
   if (syncTimer) clearTimeout(syncTimer);
   syncTimer = setTimeout(() => doSync("merge"), SYNC_DEBOUNCE_MS);
 }

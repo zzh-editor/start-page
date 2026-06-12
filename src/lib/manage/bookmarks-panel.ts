@@ -247,10 +247,10 @@ export function initBookmarksPanel(): void {
         addBookmark({ href: url, title, categoryId: catId });
         added++;
       } else {
-        normalLines.push(line);
-        const href = normalizeUrl(line);
-        if (existingHrefs.has(href)) { skipped++; normalLines.pop(); }
-        else existingHrefs.add(href);
+        const items = parseBatchInput(line);
+        const href = items.length > 0 ? normalizeUrl(items[0].href) : "";
+        if (!href || existingHrefs.has(href)) { skipped++; }
+        else { existingHrefs.add(href); normalLines.push(line); }
       }
     }
     if (normalLines.length > 0) {
