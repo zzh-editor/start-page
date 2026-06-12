@@ -3,6 +3,7 @@ import { escapeHtml } from "../../lib/helpers";
 import { getCurrentUser, onAuthChange, signInWithEmail, signUpWithEmail, signOut, resetPassword } from "../../lib/auth";
 import { isConfigured } from "../../lib/supabase";
 import { onSyncStatus, getLastSynced, doSync } from "../../lib/sync";
+import type { SyncMode } from "../../lib/sync";
 import { showToast, saveFocus, restoreFocus } from "./shared";
 
 export function initSyncPanel(): void {
@@ -12,6 +13,7 @@ export function initSyncPanel(): void {
   const lastTime = document.getElementById("sync-last-time")!;
   const storageInfo = document.getElementById("sync-storage-info")!;
   const forceBtn = document.getElementById("sync-force-btn")! as HTMLButtonElement;
+  const directionSelect = document.getElementById("sync-direction-select") as HTMLSelectElement;
   const autoToggle = document.getElementById("sync-auto-toggle") as HTMLInputElement;
   const logoutBtn = document.getElementById("sync-logout-btn")! as HTMLButtonElement;
   const loginBtn = document.getElementById("sync-login-btn")! as HTMLButtonElement;
@@ -39,7 +41,6 @@ export function initSyncPanel(): void {
   const resetError = document.getElementById("sync-reset-error")!;
   const resetSuccess = document.getElementById("sync-reset-success")!;
   let activeAuthTab: "login" | "signup" = "login";
-  let syncAutoEnabled = true;
 
   let unsubscribeSyncStatus: (() => void) | null = null;
   let unsubscribeAuth: (() => void) | null = null;
@@ -218,14 +219,24 @@ export function initSyncPanel(): void {
     }
   };
 
+  const savedDirection = localStorage.getItem("startpage:sync:direction") as SyncMode | null;
+  if (savedDirection) directionSelect.value = savedDirection;
+  directionSelect.onchange = () => {
+    localStorage.setItem("startpage:sync:direction", directionSelect.value);
+  };
+
   forceBtn.onclick = () => {
     indicator.textContent = "同步中...";
     indicator.className = "sync-state-value syncing";
-    doSync();
+    const mode = directionSelect.value as SyncMode;
+    doSync(mode);
   };
 
-  autoToggle.checked = syncAutoEnabled;
-  autoToggle.onchange = () => { syncAutoEnabled = autoToggle.checked; };
+  const autoSync = localStorage.getItem("startpage:sync:auto");
+  autoToggle.checked = autoSync !== "false";
+  autoToggle.onchange = () => {
+    localStorage.setItem("startpage:sync:auto", String(autoToggle.checked));
+  };
 
   async function refreshUser() { updateUI(); }
 

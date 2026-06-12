@@ -4,11 +4,12 @@ import { getState, replaceStore } from "./store";
 import type { Store, Bookmark, Category, Workflow } from "./store";
 
 export type SyncStatus = "idle" | "syncing" | "synced" | "error" | "offline";
+export type SyncMode = "merge" | "upload" | "download";
 
 let _syncStatus: SyncStatus = "idle";
 const syncListeners = new Set<(status: SyncStatus) => void>();
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
-let lastStoreVersion = "";
+const SYNC_DEBOUNCE_MS = 800;
 
 function assertCanSync(): boolean {
   return isConfigured() && !!getCurrentUser();
@@ -158,7 +159,8 @@ async function pullData(): Promise<{
       href: r.href,
       title: r.title,
       categoryId: r.category_id,
-      createdAt: r.created_at,
+      createdAt: Number(r.created_at),
+      updatedAt: r.updated_at ? new Date(r.updated_at).getTime() : Number(r.created_at),
     }));
 
     const categories: Category[] = (catRes.data ?? []).map((r: any) => ({
@@ -166,6 +168,7 @@ async function pullData(): Promise<{
       name: r.name,
       order: r.order,
       builtin: r.builtin ?? false,
+      updatedAt: r.updated_at ? new Date(r.updated_at).getTime() : Date.now(),
     }));
 
     const workflows: Workflow[] = (wfRes.data ?? []).map((r: any) => ({
@@ -173,9 +176,10 @@ async function pullData(): Promise<{
       name: r.name,
       bookmarkIds: r.bookmark_ids ?? [],
       urls: r.urls ?? [],
+      updatedAt: r.updated_at ? new Date(r.updated_at).getTime() : Date.now(),
     }));
 
-    const hasRemoteData = bookmarks.length > 0 || categories.length > 0;
+    const hasRemoteData = bookmarks.length > 0 || categories.length > 0 || workflows.length > 0;
 
     const store: Partial<Store> = {
       bookmarks,
@@ -194,6 +198,9 @@ async function pullData(): Promise<{
           url: settingsRes.data.custom_search_url,
         };
       }
+      store.settingsUpdatedAt = settingsRes.data.updated_at
+        ? new Date(settingsRes.data.updated_at).getTime()
+        : Date.now();
     }
 
     return { store, hasRemoteData };
@@ -203,12 +210,76 @@ async function pullData(): Promise<{
   }
 }
 
-const SYNC_DONE_KEY = "startpage:sync:done";
+// ---------- 通用合并 ----------
+function mergeArray<T extends { id: string; updatedAt: number }>(
+  local: T[],
+  remote: T[] | undefined,
+): T[] {
+  const remoteMap = new Map<string, T>();
+  for (const item of remote ?? []) {
+    remoteMap.set(item.id, item);
+  }
+  const merged: T[] = [];
+  const seenIds = new Set<string>();
+  for (const localItem of local) {
+    seenIds.add(localItem.id);
+    const remoteItem = remoteMap.get(localItem.id);
+    if (!remoteItem) {
+      merged.push(localItem);
+    } else {
+      merged.push(localItem.updatedAt >= remoteItem.updatedAt ? localItem : remoteItem);
+    }
+  }
+  for (const item of remote ?? []) {
+    if (!seenIds.has(item.id)) {
+      merged.push(item);
+    }
+  }
+  return merged;
+}
+
+// ---------- 智能合并 ----------
+function mergeStore(local: Store, remote: Partial<Store>): Store {
+  const mergedBookmarks = mergeArray(local.bookmarks, remote.bookmarks);
+  const mergedCategories = mergeArray(local.categories, remote.categories);
+  const mergedWorkflows = mergeArray(local.workflows, remote.workflows);
+
+  let mergedThemeMode = local.themeMode;
+  let mergedThemeStyle = local.themeStyle;
+  let mergedBookmarkSort = local.bookmarkSort;
+  let mergedSearchEngine = local.searchEngine;
+  let mergedCustomSearchEngine = local.customSearchEngine;
+  let mergedSettingsUpdatedAt = local.settingsUpdatedAt ?? 0;
+
+  if (remote.themeMode !== undefined) {
+    const remoteSettingsTime = remote.settingsUpdatedAt ?? 0;
+    if (remoteSettingsTime > mergedSettingsUpdatedAt) {
+      mergedThemeMode = remote.themeMode;
+      mergedThemeStyle = remote.themeStyle ?? "default";
+      mergedBookmarkSort = remote.bookmarkSort ?? "alpha";
+      mergedSearchEngine = remote.searchEngine ?? "google";
+      mergedCustomSearchEngine = remote.customSearchEngine;
+      mergedSettingsUpdatedAt = remoteSettingsTime;
+    }
+  }
+
+  return {
+    ...local,
+    version: 7,
+    themeMode: mergedThemeMode,
+    themeStyle: mergedThemeStyle,
+    bookmarkSort: mergedBookmarkSort,
+    searchEngine: mergedSearchEngine,
+    customSearchEngine: mergedCustomSearchEngine,
+    bookmarks: mergedBookmarks,
+    categories: mergedCategories,
+    workflows: mergedWorkflows,
+    settingsUpdatedAt: mergedSettingsUpdatedAt,
+  };
+}
 
 // ---------- 执行同步 ----------
-// 首次同步先 pull 远端数据覆盖本地，再 push 本地；
-// 后续同步仅 push（本地优先）。
-export async function doSync(): Promise<void> {
+export async function doSync(mode: SyncMode = "merge"): Promise<void> {
   if (!navigator.onLine) {
     setSyncStatus("offline");
     return;
@@ -219,24 +290,41 @@ export async function doSync(): Promise<void> {
   }
   setSyncStatus("syncing");
 
-  const isFirstSync = !localStorage.getItem(SYNC_DONE_KEY);
+  if (mode === "upload") {
+    const ok = await pushData();
+    localStorage.setItem("startpage:sync:last", String(Date.now()));
+    setSyncStatus(ok ? "synced" : "error");
+    return;
+  }
 
-  if (isFirstSync) {
+  if (mode === "download") {
     const { store, hasRemoteData } = await pullData();
     if (hasRemoteData && store) {
       replaceStore(store);
+      localStorage.setItem("startpage:sync:last", String(Date.now()));
+      setSyncStatus("synced");
+    } else {
+      setSyncStatus("error");
     }
-    localStorage.setItem(SYNC_DONE_KEY, "1");
+    return;
   }
 
+  // merge: pull → merge → push
+  const { store: remoteStore, hasRemoteData } = await pullData();
+  if (hasRemoteData && remoteStore) {
+    const merged = mergeStore(getState(), remoteStore);
+    replaceStore(merged);
+  }
   const ok = await pushData();
   localStorage.setItem("startpage:sync:last", String(Date.now()));
   setSyncStatus(ok ? "synced" : "error");
 }
 
 export function enqueueSync(): void {
+  const autoSync = localStorage.getItem("startpage:sync:auto");
+  if (autoSync === "false") return;
   if (syncTimer) clearTimeout(syncTimer);
-  syncTimer = setTimeout(() => doSync(), 800);
+  syncTimer = setTimeout(() => doSync("merge"), SYNC_DEBOUNCE_MS);
 }
 
 // ---------- 首次启动同步 ----------
@@ -246,7 +334,7 @@ export async function initSync(): Promise<boolean> {
     setSyncStatus("offline");
     return false;
   }
-  return doSync().then(() => true).catch(() => false);
+  return doSync("merge").then(() => true).catch(() => false);
 }
 
 // ---------- 在线/离线监听 ----------
@@ -254,7 +342,7 @@ if (typeof window !== "undefined") {
   window.addEventListener("online", () => {
     if (getSyncStatus() === "offline") {
       setSyncStatus("idle");
-      doSync();
+      doSync("merge");
     }
   });
   window.addEventListener("offline", () => {

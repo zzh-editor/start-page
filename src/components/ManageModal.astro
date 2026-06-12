@@ -72,7 +72,7 @@
         </div>
 
         <div class="bm-form" id="bm-batch-form" hidden data-squircle data-squircle-radius="16">
-          <textarea id="bm-batch-text" rows="4" placeholder="每行：网址  标题（标题可选）&#10;https://github.com  GitHub&#10;https://news.ycombinator.com"></textarea>
+          <textarea id="bm-batch-text" rows="4" placeholder="每行：网址  标题（可选）  分组（可选）&#10;https://github.com  GitHub  Dev&#10;https://news.ycombinator.com  Hacker News"></textarea>
           <select id="bm-batch-cat"></select>
           <div class="bm-form-actions">
             <button type="button" class="btn" id="bm-batch-cancel">取消</button>
@@ -207,6 +207,14 @@
               <button type="button" class="btn sync-btn-wide" id="sync-signup-btn">注册</button>
             </div>
             <div class="sync-action-group" id="sync-auth-actions" hidden>
+              <div class="sync-direction-row">
+                <label for="sync-direction-select" class="sync-direction-label">同步方向</label>
+                <select id="sync-direction-select" class="sync-direction-select">
+                  <option value="merge">智能合并（推荐）</option>
+                  <option value="upload">本地上传 → 云端</option>
+                  <option value="download">云端下载 → 本地</option>
+                </select>
+              </div>
               <button type="button" class="btn primary sync-btn-wide" id="sync-force-btn">立即同步</button>
               <label class="sync-toggle">
                 <input type="checkbox" id="sync-auto-toggle" checked />
@@ -1205,6 +1213,32 @@
   .sync-toggle-label {
     font-size: 13px;
     color: var(--text);
+  }
+
+  .sync-direction-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .sync-direction-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+  }
+  .sync-direction-select {
+    flex: 1;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color, #e2e8f0);
+    background: var(--bg-secondary, #f8fafc);
+    color: var(--text-primary);
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .sync-direction-select:focus {
+    outline: none;
+    border-color: var(--accent, #3b82f6);
   }
 
   .sync-doc-link {
